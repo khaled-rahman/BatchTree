@@ -1,7 +1,4 @@
-# BatchLayout
-
-Parallel Batch Update Algorithm for Force-Directed Graph Layout generation in Shared Memory. This tool generates layout of graphs using multicores which is generally faster than equivalent algorithms. It comes with various features, e.g., it intializes layout using random technique as well as greedy technique (helps to converge faster), it provides several ptions like (a,r)-energy models and Edge weights, it can approximate repulsive forces by  Barnes-Hut approximation and greedy technique. We assume that the input graph is undirected, connected and symmetric.
-
+# BatchPrEd
 
 ## System Requirements
 
@@ -13,17 +10,17 @@ Python3 packages: matplotlib, scipy, networkx, numpy
 ```
 Some helpful links for installation can be found at [GCC](https://gcc.gnu.org/install/), [OpenMP](https://clang-omp.github.io) and [Environment Setup](http://heather.cs.ucdavis.edu/~matloff/158/ToolsInstructions.html#compile_openmp).
 
-## Compile BatchLayout
-To compile BatchLayout type the following command on terminal:
+## Compile BatchPrEd
+To compile BatchPrEd type the following command on terminal:
 ```
 $ make clean
 $ make
 ```
 This will generate an executible file in bin folder.
 
-## Run BatchLayout from command line
+## Run BatchPrEd from command line
 
-Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchLayout, use the following command:
+Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchPrEd, use the following command:
 ```
 $ ./bin/BatchPrEd -input ./datasets/input/sf_ba6000.mtx -output ./datasets/output/ -iter 10 -batch 256 -threads 32 -algo 2
 ```
