@@ -581,6 +581,9 @@ class algorithms{
 								}
 							}
 							prevCoordinates[i+bi] += f;
+							//assert(!isnan(f.x));
+							//assert(!isnan(f.y));
+							//if(isnan(f.x))printf("VID=%d, V2=%d %lf, %lf\n", i, j, f.x, f.y);
 						}
 					}
 
@@ -591,13 +594,17 @@ class algorithms{
 						for(INDEXTYPE j = graph.rowptr[k]; j < graph.rowptr[k+1]; j++){
 							if(graph.colids[j] == i) continue;
 							//calc projection
-							auto projCoordinates = nCoordinates[i].getProjection(nCoordinates[k], nCoordinates[j]);
+							auto projCoordinates = nCoordinates[i].getProjection(nCoordinates[k], nCoordinates[graph.colids[j]]);
 							auto diff = projCoordinates - nCoordinates[i];
 							INDEXTYPE sec = 0;
 							VALUETYPE dist2 = diff.getMagnitude();
-							if (dist2 < gamma){
+							if (dist2 < gamma && dist2 > 0.0){
                                                 		fe = fe + (projCoordinates - nCoordinates[i]) * ((gamma - dist2) * (gamma - dist2) / dist2);	
                                         		}
+							if(isnan(fe.x)){
+								printf("Problem:V1=%d, V2=%d, V3=%d, %lf, %lf\n", i, k, j, fe.x, fe.y);
+								exit(0);
+							}
 							//identify sector
 							if(diff.x >= 0){
 								if(diff.y >= 0){
