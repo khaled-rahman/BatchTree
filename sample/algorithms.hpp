@@ -528,7 +528,7 @@ class algorithms{
 		vector<int> kindex(graph.rows, 0);
 		VALUETYPE delta = 10.0;
 		if(delta < 1.0){
-			printf("Here\n");
+			printf("Normalizing...\n");
 			for(INDEXTYPE k = 0; k < graph.rows; k++){
 				for(INDEXTYPE j = graph.rowptr[k]; j < graph.rowptr[k+1]; j++){
 					delta += (nCoordinates[k] - nCoordinates[graph.colids[j]]).getMagnitude();
