@@ -526,15 +526,19 @@ class algorithms{
                 vector<VALUETYPE> result;
                 vector<INDEXTYPE> indices;
 		vector<int> kindex(graph.rows, 0);
-		
-                for(INDEXTYPE i = 0; i < graph.rows; i++){
-			for(INDEXTYPE j = 0; j < MAX_SECTORS; j++){
-				sectors[i * MAX_SECTORS + j] = numeric_limits<VALUETYPE>::max();
+		VALUETYPE delta = 20;
+		if(delta < 1.0){
+			printf("Here\n");
+			for(INDEXTYPE k = 0; k < graph.rows; k++){
+				for(INDEXTYPE j = graph.rowptr[k]; j < graph.rowptr[k+1]; j++){
+					delta += (nCoordinates[k] - nCoordinates[graph.colids[j]]).getMagnitude();
+				}
 			}
+			delta = delta / graph.rows;
 		}
                 ENERGY0 = numeric_limits<VALUETYPE>::max();
                 ENERGY = 0;
-		VALUETYPE gamma = 10.0;
+		VALUETYPE gamma = 4 * delta;
                 omp_set_num_threads(NUMOFTHREADS);
                 start = omp_get_wtime();
 		if(flag == 0){
@@ -555,38 +559,28 @@ class algorithms{
                         for(INDEXTYPE k = 0; k < graph.rows; k++){
                         	kindex[k] = graph.rowptr[k];
                         	prevCoordinates[k] = Coordinate <VALUETYPE>(0.0, 0.0);
+				for(INDEXTYPE j = 0; j < MAX_SECTORS; j++){
+					sectors[k * MAX_SECTORS + j] = numeric_limits<VALUETYPE>::max();
+				}
 			}
 			for(INDEXTYPE b = 0; b < (int)ceil( 1.0 * graph.rows / BATCHSIZE); b += 1){
 				#pragma omp parallel for schedule(static)
-				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i += blockx){
+				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i += 1){
                                 	if(i >= graph.rows)continue;
-
-					//node-node attraction and node-node repulsion
-                                	for(INDEXTYPE j = 0; j < graph.rows; j += blocky){
-						for(INDEXTYPE bi = 0; bi < blockx && i + bi < (b + 1) * BATCHSIZE; bi++){
-							if(i+bi >= graph.rows) break;
-							Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-                                        		for(INDEXTYPE bj = 0; bj < blocky && j + bj < graph.rows; bj++){
-								if(j + bj == graph.colids[kindex[bi+i]]){
-									f += (nCoordinates[j+bj] - nCoordinates[i+bi]) * (W * (nCoordinates[j+bj] - nCoordinates[i+bi]).getMagnitude());
-									if(kindex[bi+i] < graph.rowptr[i+bi+1] - 1){
-										kindex[bi+i]++;
-									}
-								}else{
-									VALUETYPE dist = (this->nCoordinates[j+bj] - this->nCoordinates[i+bi]).getMagnitude2();
-									if(dist > 0)
-                                                        		{
-                                                                		f = f - (this->nCoordinates[j+bj] - this->nCoordinates[i+bi]) * (1.0 / (dist));
-                                                        		}
-								}
-							}
-							prevCoordinates[i+bi] += f;
-							//assert(!isnan(f.x));
-							//assert(!isnan(f.y));
-							//if(isnan(f.x))printf("VID=%d, V2=%d %lf, %lf\n", i, j, f.x, f.y);
+					Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
+					//node-node repulsion
+                                	for(INDEXTYPE j = 0; j < graph.rows; j += 1){
+						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
+						if(dist > 0){
+							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
 						}
 					}
-
+					if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
+					//node-node on edge attraction
+					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
+						f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
+					}
+					if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
 					//node-edge repulsion
 					Coordinate<VALUETYPE> fe = Coordinate <VALUETYPE>(0.0, 0.0);
 					for(INDEXTYPE k = 0; k < graph.rows; k += 1){
@@ -597,54 +591,77 @@ class algorithms{
 							auto projCoordinates = nCoordinates[i].getProjection(nCoordinates[k], nCoordinates[graph.colids[j]]);
 							auto diff = projCoordinates - nCoordinates[i];
 							INDEXTYPE sec = 0;
-							VALUETYPE dist2 = diff.getMagnitude();
-							if (dist2 < gamma && dist2 > 0.0){
-                                                		fe = fe + (projCoordinates - nCoordinates[i]) * ((gamma - dist2) * (gamma - dist2) / dist2);	
-                                        		}
-							if(isnan(fe.x)){
-								printf("Problem:V1=%d, V2=%d, V3=%d, %lf, %lf\n", i, k, j, fe.x, fe.y);
-								exit(0);
-							}
-							//identify sector
-							if(diff.x >= 0){
-								if(diff.y >= 0){
-									if(diff.x >= diff.y){
-										sec = 1;
+							if(projCoordinates.isOnEdge(nCoordinates[k], nCoordinates[graph.colids[j]])){
+								VALUETYPE dist2 = diff.getMagnitude();
+								if (dist2 <= gamma && dist2 > 0.0){
+                                                			auto tf = (projCoordinates - nCoordinates[i]) * ((gamma - dist2) * (gamma - dist2) / dist2);	
+                                        				fe = fe + tf;
+									
+									//problematic updates (false sharing)
+									prevCoordinates[k] = prevCoordinates[k] + tf;
+									prevCoordinates[graph.colids[j]] = prevCoordinates[graph.colids[j]] + tf;
+								}
+								if(isnan(fe.x)){
+									printf("Problem:V1=%d, V2=%d, V3=%d, %lf, %lf\n", i, k, j, fe.x, fe.y);
+									exit(0);
+								}
+								//identify sector
+								if(diff.x >= 0){
+									if(diff.y >= 0){
+										if(diff.x >= diff.y){
+											sec = 1;
+										}else{
+											sec = 2;
+										}
 									}else{
-										sec = 2;
+										if(diff.x >= -diff.y){
+											sec = 8;
+										}else{
+											sec = 7;
+										}
 									}
 								}else{
-									if(diff.x >= -diff.y){
-										sec = 8;
+									if(diff.y >= 0){
+										if(-diff.x >= diff.y){
+											sec = 4;
+										}else{
+											sec = 3;
+										}
 									}else{
-										sec = 7;
+										if(-diff.x >= -diff.y){
+											sec = 5;
+										}else{
+											sec = 6;
+										}
 									}
+								}
+							
+								if(sec == 0)printf("Sector Not Identified !!\n");
+								//update maximum movement in each sector
+								for(INDEXTYPE v = sec - 2; v <= sec + 2; v++){
+									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
+									if(val <= 0) val += MAX_SECTORS;
+									sectors[i * MAX_SECTORS + val] = min(sectors[i * MAX_SECTORS + val], dist2 / 3.0);
+								}
+								for(INDEXTYPE v = sec + 2; v <= sec + 6; v++){
+									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
+									//problematic updates (false sharing)
+									sectors[k * MAX_SECTORS + val] = min(sectors[k * MAX_SECTORS + val], dist2 / 3.0);
+									sectors[graph.colids[j] * MAX_SECTORS + val] = min(sectors[graph.colids[j] * MAX_SECTORS + val], dist2 / 3.0);
 								}
 							}else{
-								if(diff.y >= 0){
-									if(-diff.x >= diff.y){
-										sec = 4;
-									}else{
-										sec = 3;
-									}
-								}else{
-									if(-diff.x >= -diff.y){
-										sec = 5;
-									}else{
-										sec = 6;
-									}
+								auto distKI = (nCoordinates[k] - nCoordinates[i]).getMagnitude();
+								auto distJI = (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude();
+								for(INDEXTYPE v = 1; v < MAX_SECTORS; v++){
+									sectors[i * MAX_SECTORS + v] = min(sectors[i * MAX_SECTORS + v], min(distKI, distJI)/3.0);
+									//problematic updates (false sharing)
+									sectors[k * MAX_SECTORS + v] = min(sectors[k * MAX_SECTORS + v], distKI / 3.0);
+									sectors[graph.colids[j] * MAX_SECTORS + v] = min(sectors[graph.colids[j] * MAX_SECTORS + v], distJI / 3.0);
 								}
 							}
-							if(sec == 0)printf("Sector Not Identified !!\n");
-							//update maximum movement in each sector
-							for(INDEXTYPE v = sec - 2; v <= sec + 2; v++){
-								auto val = 1 + ((v-1) % MAX_SECTORS);
-								if(val <= 0) val += MAX_SECTORS;
-								sectors[i * MAX_SECTORS + val] = min(sectors[i * MAX_SECTORS + val], dist2 / 3.0);
-							} 
 						}
 					}
-					prevCoordinates[i] += fe;
+					prevCoordinates[i] = f - fe;
 
 				}
 				//moving vertices based on forces
@@ -681,14 +698,18 @@ class algorithms{
                                                  }
                                         }
 					auto movelen = prevCoordinates[i].getMagnitude();
+					ENERGY += prevCoordinates[i].getMagnitude2();
 					if(movelen > sectors[i * MAX_SECTORS + sec]){
 						nCoordinates[i].x = nCoordinates[i].x + (prevCoordinates[i].x / movelen) * sectors[i * MAX_SECTORS + sec];
 						nCoordinates[i].y = nCoordinates[i].y + (prevCoordinates[i].y / movelen) * sectors[i * MAX_SECTORS + sec];
+						prevCoordinates[i].x = 0;
+						prevCoordinates[i].y = 0;
 					}else{
 						nCoordinates[i].x = nCoordinates[i].x + prevCoordinates[i].x;
                                                 nCoordinates[i].y = nCoordinates[i].y + prevCoordinates[i].y;
+						prevCoordinates[i].x = 0;
+						prevCoordinates[i].y = 0;
 					}
-                                	ENERGY += prevCoordinates[i].getMagnitude2();
 				}
 			}
                         //STEP = STEP * 0.999;

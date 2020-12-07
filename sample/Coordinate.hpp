@@ -63,7 +63,7 @@ class Coordinate{
 		Coordinate getUnitVector(){
 			return Coordinate(this->x / getMagnitude(), this->y / getMagnitude());
 		}
-                Coordinate getProjection(Coordinate A, Coordinate B){
+                Coordinate getProjection2(Coordinate A, Coordinate B){
 			VALUETYPE a1 = A.y - B.y;
 			VALUETYPE b1 = B.x - A.x;
 			VALUETYPE c1 = B.x * A.y - A.x * B.y;
@@ -76,6 +76,7 @@ class Coordinate{
 			VALUETYPE distAB = A.getDistance(B);
 			VALUETYPE distA = this->getDistance(A);
 			VALUETYPE distB = this->getDistance(B);
+			return Coordinate( nom1 / det, nom2 / det);
 			if(distA < distAB){
 				return Coordinate( nom1 / det, nom2 / det);
 			}else{
@@ -85,6 +86,20 @@ class Coordinate{
 					return B;
 				}
 			}
+		}
+		Coordinate getProjection(Coordinate A, Coordinate B){
+                        VALUETYPE a1 = A.y - B.y;
+                        VALUETYPE b1 = A.x - B.x;
+                        VALUETYPE m = a1 / b1;
+                        VALUETYPE n = - 1.0 / m;
+                        VALUETYPE c = A.y - m * A.x;
+                        VALUETYPE d = this->y - n * this->x;
+                        return Coordinate((d-c)/(m-n), m * (d-c)/(m-n) + c);
+		}
+		bool isOnEdge(Coordinate A, Coordinate B){
+			bool xb = (this->x <= A.x && this->x >= B.x) || (this->x >= A.x && this->x <= B.x);
+			bool yb = (this->y <= A.y && this->y >= B.y) || (this->y >= A.y && this->y <= B.y);
+			return xb && yb;
 		}
 		Coordinate operator*(VALUETYPE v){
 			return Coordinate(this->x * v, this->y * v);
