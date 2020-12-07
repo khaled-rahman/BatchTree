@@ -526,7 +526,7 @@ class algorithms{
                 vector<VALUETYPE> result;
                 vector<INDEXTYPE> indices;
 		vector<int> kindex(graph.rows, 0);
-		VALUETYPE delta = 20;
+		VALUETYPE delta = 10.0;
 		if(delta < 1.0){
 			printf("Here\n");
 			for(INDEXTYPE k = 0; k < graph.rows; k++){
@@ -575,12 +575,12 @@ class algorithms{
 							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
 						}
 					}
-					if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
+					//if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
 					//node-node on edge attraction
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
 						f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
 					}
-					if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
+					//if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
 					//node-edge repulsion
 					Coordinate<VALUETYPE> fe = Coordinate <VALUETYPE>(0.0, 0.0);
 					for(INDEXTYPE k = 0; k < graph.rows; k += 1){
@@ -602,7 +602,7 @@ class algorithms{
 									prevCoordinates[graph.colids[j]] = prevCoordinates[graph.colids[j]] + tf;
 								}
 								if(isnan(fe.x)){
-									printf("Problem:V1=%d, V2=%d, V3=%d, %lf, %lf\n", i, k, j, fe.x, fe.y);
+									printf(">E<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, k, fe.x, fe.y, delta);
 									exit(0);
 								}
 								//identify sector
