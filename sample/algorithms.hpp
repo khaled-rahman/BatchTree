@@ -518,6 +518,33 @@ class algorithms{
                 result.push_back(end - start);
 		return result;
 	}
+	bool checkTriples(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B, Coordinate<VALUETYPE> C){
+		return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+	}
+	bool checkIntersection(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B, Coordinate<VALUETYPE> C, Coordinate<VALUETYPE> D){
+		return checkTriples(A,C,D) != checkTriples(B,C,D) and checkTriples(A,B,C) != checkTriples(A,B,D);
+	}
+
+	bool checkCrossing(INDEXTYPE LOOP){
+		for(int i = 0; i < graph.rows; i++){
+                	for(int j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
+                        	for(int k = 0; k < graph.rows; k++){
+                                	for(int l = graph.rowptr[k]; l < graph.rowptr[k+1]; l++){
+                                        	if(i == k || graph.colids[j] == graph.colids[l]) continue;
+                                                if(i == graph.colids[l] || k == graph.colids[j]) continue;
+                                                if(checkIntersection(nCoordinates[i], nCoordinates[graph.colids[j]], nCoordinates[k], nCoordinates[graph.colids[l]])){
+                                                	printf("Crossing Found! IT=%d, i=%d,j=%d,k=%d,l=%d\n", LOOP, i, graph.colids[j], k, graph.colids[l]);
+                                                        printf("i:%d = (%lf, %lf), j:%d = (%lf, %lf)\n", i, nCoordinates[i].x, nCoordinates[i].y, graph.colids[j], nCoordinates[graph.colids[j]].x, nCoordinates[graph.colids[j]].y);
+                                                        printf("k:%d = (%lf, %lf), l:%d = (%lf, %lf)\n", k, nCoordinates[k].x, nCoordinates[k].y, graph.colids[l], nCoordinates[graph.colids[l]].x, nCoordinates[graph.colids[l]].y);
+                                                        return true;//exit(0);
+                                                }
+                                        }
+                                }
+                        }
+                }
+		return false;
+	}
+
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
                 INDEXTYPE LOOP = 0;
 		INDEXTYPE blocky = 512, blockx = 2;
@@ -575,12 +602,12 @@ class algorithms{
 							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
 						}
 					}
-					//if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
+					if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
 					//node-node on edge attraction
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
 						f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
 					}
-					//if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
+					if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
 					//node-edge repulsion
 					Coordinate<VALUETYPE> fe = Coordinate <VALUETYPE>(0.0, 0.0);
 					for(INDEXTYPE k = 0; k < graph.rows; k += 1){
@@ -640,11 +667,12 @@ class algorithms{
 								//update maximum movement in each sector
 								for(INDEXTYPE v = sec - 2; v <= sec + 2; v++){
 									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
-									if(val <= 0) val += MAX_SECTORS;
+									if(val <= 0) val += (MAX_SECTORS-1);
 									sectors[i * MAX_SECTORS + val] = min(sectors[i * MAX_SECTORS + val], dist2 / 3.0);
 								}
 								for(INDEXTYPE v = sec + 2; v <= sec + 6; v++){
 									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
+									if(val <= 0) val += (MAX_SECTORS-1);
 									//problematic updates (false sharing)
 									sectors[k * MAX_SECTORS + val] = min(sectors[k * MAX_SECTORS + val], dist2 / 3.0);
 									sectors[graph.colids[j] * MAX_SECTORS + val] = min(sectors[graph.colids[j] * MAX_SECTORS + val], dist2 / 3.0);
@@ -661,9 +689,15 @@ class algorithms{
 							}
 						}
 					}
-					prevCoordinates[i] = f - fe;
+					prevCoordinates[i] += f - fe;
 
 				}
+				/*for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
+					if(i >= graph.rows) continue;
+					for(INDEXTYPE j = 0; j < MAX_SECTORS; j++) printf("i=%d, j=%d, max=%lf:",i,j,sectors[i * MAX_SECTORS + j]);
+					printf("\n");
+				}
+				*/
 				//moving vertices based on forces
                                 for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
                                         if(i >= graph.rows) continue;
@@ -697,16 +731,25 @@ class algorithms{
                                                         }
                                                  }
                                         }
+					assert(sec!=0);
 					auto movelen = prevCoordinates[i].getMagnitude();
 					ENERGY += prevCoordinates[i].getMagnitude2();
 					if(movelen > sectors[i * MAX_SECTORS + sec]){
 						nCoordinates[i].x = nCoordinates[i].x + (prevCoordinates[i].x / movelen) * sectors[i * MAX_SECTORS + sec];
 						nCoordinates[i].y = nCoordinates[i].y + (prevCoordinates[i].y / movelen) * sectors[i * MAX_SECTORS + sec];
+						if(checkCrossing(LOOP)){
+                                                	printf("Partial:i = %d, movelen=%lf, max=%lf, (x = %lf, y = %lf) <= (x = %lf, y = %lf)\n", i, movelen, sectors[i * MAX_SECTORS + sec], nCoordinates[i].x, nCoordinates[i].y, nCoordinates[i].x - (prevCoordinates[i].x / movelen) * sectors[i * MAX_SECTORS + sec], nCoordinates[i].y - (prevCoordinates[i].y / movelen) * sectors[i * MAX_SECTORS + sec]);
+                                                	exit(0);
+                                        	}
 						prevCoordinates[i].x = 0;
 						prevCoordinates[i].y = 0;
 					}else{
 						nCoordinates[i].x = nCoordinates[i].x + prevCoordinates[i].x;
                                                 nCoordinates[i].y = nCoordinates[i].y + prevCoordinates[i].y;
+						if(checkCrossing(LOOP)){
+                                                	printf("All:i = %d, movelen=%lf, max=%lf, x = %lf, y = %lf\n", i, movelen, sectors[i * MAX_SECTORS + sec], nCoordinates[i].x, nCoordinates[i].y);
+                                                	exit(0);
+                                        	}
 						prevCoordinates[i].x = 0;
 						prevCoordinates[i].y = 0;
 					}
