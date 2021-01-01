@@ -600,7 +600,7 @@ class algorithms{
 		return result;
 	}
 	bool checkTriples(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B, Coordinate<VALUETYPE> C){
-		return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x);
+		return (C.y-A.y) * (B.x-A.x) >= (B.y-A.y) * (C.x-A.x);
 	}
 	bool checkIntersection(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B, Coordinate<VALUETYPE> C, Coordinate<VALUETYPE> D){
 		return checkTriples(A,C,D) != checkTriples(B,C,D) and checkTriples(A,B,C) != checkTriples(A,B,D);
@@ -608,42 +608,68 @@ class algorithms{
 
 	bool checkCrossing(INDEXTYPE LOOP){
 		bool flag = false;
-		#pragma omp parallel for
-		for(int i = 0; i < graph.rows; i++){
-                	for(int j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
-                        	for(int k = 0; k < graph.rows; k++){
-                                	for(int l = graph.rowptr[k]; l < graph.rowptr[k+1]; l++){
-                                        	if(i == k || graph.colids[j] == graph.colids[l]) continue;
-                                                if(i == graph.colids[l] || k == graph.colids[j]) continue;
-                                                if(checkIntersection(nCoordinates[i], nCoordinates[graph.colids[j]], nCoordinates[k], nCoordinates[graph.colids[l]])){
-                                                	//printf("Crossing Found! IT=%d, i=%d,j=%d,k=%d,l=%d\n", LOOP, i, graph.colids[j], k, graph.colids[l]);
-                                                        //printf("i:%d = (%lf, %lf), j:%d = (%lf, %lf)\n", i, nCoordinates[i].x, nCoordinates[i].y, graph.colids[j], nCoordinates[graph.colids[j]].x, nCoordinates[graph.colids[j]].y);
-                                                        //printf("k:%d = (%lf, %lf), l:%d = (%lf, %lf)\n", k, nCoordinates[k].x, nCoordinates[k].y, graph.colids[l], nCoordinates[graph.colids[l]].x, nCoordinates[graph.colids[l]].y);
-                                                        flag = true;//return true;//exit(0);
-                                                }
-                                        }
-                                }
-                        }
-                }
+		#pragma omp parallel
+		{
+			INDEXTYPE tid = omp_get_thread_num();
+			INDEXTYPE nthreads = omp_get_num_threads();
+			INDEXTYPE perthreadwork = graph.rows / nthreads;
+			INDEXTYPE starti = tid * perthreadwork;
+ 			INDEXTYPE endi = (tid + 1) * perthreadwork;
+			if(tid == nthreads - 1) endi = max(endi, graph.rows);
+			for(INDEXTYPE i = starti; i < endi && flag == false; i++){
+                		for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1] && flag == false; j++){
+                        		for(INDEXTYPE k = 0; k < graph.rows && flag == false; k++){
+                                		for(INDEXTYPE l = graph.rowptr[k]; l < graph.rowptr[k+1]; l++){
+                                        		if(i == k || graph.colids[j] == graph.colids[l]) continue;
+                                                	if(i == graph.colids[l] || k == graph.colids[j]) continue;
+                                                	if(checkIntersection(nCoordinates[i], nCoordinates[graph.colids[j]], nCoordinates[k], nCoordinates[graph.colids[l]])){
+                                                		//printf("Crossing Found! IT=%d, i=%d,j=%d,k=%d,l=%d\n", LOOP, i, graph.colids[j], k, graph.colids[l]);
+                                                        	//printf("i:%d = (%lf, %lf), j:%d = (%lf, %lf)\n", i, nCoordinates[i].x, nCoordinates[i].y, graph.colids[j], nCoordinates[graph.colids[j]].x, nCoordinates[graph.colids[j]].y);
+                                                        	//printf("k:%d = (%lf, %lf), l:%d = (%lf, %lf)\n", k, nCoordinates[k].x, nCoordinates[k].y, graph.colids[l], nCoordinates[graph.colids[l]].x, nCoordinates[graph.colids[l]].y);
+                                                        	flag = true;//return true;//exit(0);
+                                                	}
+                                        	}
+                                	}
+                        	}
+                	}
+		}
 		return flag;
 	}
-	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> P, Coordinate<VALUETYPE> N){
+	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N){
 		bool flag = false;
 		#pragma omp parallel
-		for(int i = 0; i < graph.rows; i++){
-			for(int j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
-				if(n == i || graph.colids[j] == n) continue;
-				//if(n ==  || graph.colids[j] == n) continue;
-				if(checkIntersection(P, N, nCoordinates[i], nCoordinates[graph.colids[j]])){
-					flag = true;
+		{
+			INDEXTYPE tid = omp_get_thread_num();
+                        INDEXTYPE nthreads = omp_get_num_threads();
+                        INDEXTYPE perthreadwork = graph.rows / nthreads;
+                        INDEXTYPE starti = tid * perthreadwork;
+                        INDEXTYPE endi = (tid + 1) * perthreadwork;
+                        if(tid == nthreads - 1) endi = max(endi, graph.rows);
+			for(int i = starti; i < endi && flag == false; i++){
+				for(int j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
+					for(int f = graph.rowptr[n]; f < graph.rowptr[n+1]; f++){
+						if(n == i || graph.colids[f] == graph.colids[j]) continue;
+						if(graph.colids[f] == i || n == graph.colids[j]) continue;
+						if(checkIntersection(N, nCoordinates[graph.colids[f]], nCoordinates[i], nCoordinates[graph.colids[j]])){
+							//printf("Test:(%d %d), (%d, %d)\n", n, graph.colids[f], i, graph.colids[j]);
+							flag = true;
+						}
+					}
 				}
 			}
 		}
 		return flag;
 	}
+	void rescaleLayout(VALUETYPE scalefactor = 2.0){
+		for(INDEXTYPE i = 0; i < graph.rows; i++){
+                        nCoordinates[i].x = nCoordinates[i].x * scalefactor;
+			nCoordinates[i].y = nCoordinates[i].y * 2.0 * scalefactor;
+		}
+	}
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm2(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
                 INDEXTYPE LOOP = 0;
                 INDEXTYPE blocky = 512, blockx = 2;
+		VALUETYPE dedgelength = 10.0;
                 VALUETYPE start, end, ENERGY, ENERGY0;
                 VALUETYPE STEP = 0.005;
                 vector<VALUETYPE> result;
@@ -686,7 +712,7 @@ class algorithms{
                 VALUETYPE angle = getAngle(Coordinate <VALUETYPE>(-10.0, -10.0));
                 printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
                 printf("After initialization...\n");
-                checkCrossing(-1);
+                if(!checkCrossing(-1))printf("No Crossing After initialization...\n");
 		while(LOOP < ITERATIONS){
                         ENERGY0 = ENERGY;
                         ENERGY = 0;
@@ -708,19 +734,25 @@ class algorithms{
                                         }
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
 						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
-                                                f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude() + (delta * delta) / (dist));
-                                        }
+                                                if(dist < dedgelength)
+							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * ( (delta * delta) / (dist)));
+                                        	else
+							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
+					}
 					prevCoordinates[i] += f;
 				}
 				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
                                         if(i >= graph.rows) continue;
-					auto p = nCoordinates[i];
+					auto p = Coordinate <VALUETYPE>(0.0, 0.0);
+					p.x = nCoordinates[i].x;
+					p.y = nCoordinates[i].y;
 					//nCoordinates[i].x = scaleX(nCoordinates[i].x + STEP * prevCoordinates[i].x);
 					//nCoordinates[i].y = scaleY(nCoordinates[i].y + STEP * prevCoordinates[i].y);
 					nCoordinates[i].x = nCoordinates[i].x + STEP * prevCoordinates[i].x;
                                         nCoordinates[i].y = nCoordinates[i].y + STEP * prevCoordinates[i].y;
-					//if(hasEdgeCrossing(LOOP, i, p, nCoordinates[i])){
+					//if(hasEdgeCrossing(LOOP, i, nCoordinates[i])){
 					if(checkCrossing(LOOP)){
+						//printf("i:%d = (%lf, %lf), j:(%lf, %lf)\n", i, p.x, p.y, nCoordinates[i].x, nCoordinates[i].y);
 						nCoordinates[i] = p;
 					}
 				}
@@ -733,6 +765,7 @@ class algorithms{
 			LOOP++;
 		}
 		end = omp_get_wtime();
+		rescaleLayout(5);
                 if(flag == 0){
                 cout << "Cache Blocking Minibatch Size:" << BATCHSIZE  << endl;
                 cout << "Cache Blocking Minbatch Energy:" << ENERGY << endl;
