@@ -27,9 +27,11 @@ template <class VALUETYPE>
 class Coordinate{
 	public:
 		VALUETYPE x, y;
+		short int z;
 		Coordinate(){
 			this->x = 0;
 			this->y = 0;
+			this->z = 0;
 		}
 		Coordinate(VALUETYPE x, VALUETYPE y){
 			this->x = x;
@@ -45,12 +47,18 @@ class Coordinate{
 		VALUETYPE getY() const{
 			return this->y;
 		}
+		VALUETYPE getZ() const{
+                        return this->z;
+                }
 		void setX(VALUETYPE x){
 			this->x = x;
 		}
 		void setY(VALUETYPE y){
 			this->y = y;
 		}
+		void setZ(VALUETYPE z){
+                        this->z = z;
+                }
 		VALUETYPE getMagnitude(){
 			return (VALUETYPE)sqrt(this->x * this->x + this->y * this->y);
 		}

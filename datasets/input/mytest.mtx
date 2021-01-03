@@ -1,0 +1,24 @@
+%%MatrixMarket matrix coordinate pattern symmetric
+%-------------------------------------------------------------------------------
+% UF Sparse Matrix Collection, Tim Davis
+% http://www.cise.ufl.edu/research/sparse/matrices/HB/jagmesh1
+% name: HB/jagmesh1
+% [SYMMETRIC PATTERN FROM ALAN GEORGE - SMALL HOLE SQUARE]
+% id: 176
+% date: 1978
+% author: A. George
+% ed: I. Duff, R. Grimes, J. Lewis
+% fields: title A name id date author ed kind
+% kind: 2D/3D problem
+%-------------------------------------------------------------------------------
+11 11 10
+1 2
+1 3
+1 4
+2 5
+2 6
+3 7
+4 8
+4 9
+9 10
+9 11

@@ -30,6 +30,7 @@ void helpmessage(){
 	printf("Usage of BatchLayout tool:\n");
 	printf("-input <string>, full path of input file (required).\n");
 	printf("-output <string>, directory where output file will be stored.\n");
+	printf("-label <string>, full path of labels for nodes.\n");
 	printf("-batch <int>, size of minibatch.\n");
 	printf("-init <int>, any of 0 or 1, 1 - random initialization, 0 - greedy initialization.\n");
 	printf("-initf <string>, this will overwrite -init and initialize coordinates from a given file.\n");
@@ -46,25 +47,25 @@ void helpmessage(){
 	printf("        7 - for parallel layout generation, this will calculate forces using linear algebric format.\n");
 	printf("        8 - for parallel layout generation, (1,-1)-energy model.\n");
 	printf("-bht <float>, barnes-hut threshold parameter.\n");
-	printf("-engt <float>, convergenece criteria. It should be a floating point number between 0 to 1 exclusive.\n");
-        printf("It indicates if energy value is improved less than this percenrages then optimization will stop and return layout. If this value is set, then number of iteration will be overwritten.\n");
+	printf("-lr <float>, learning rate. It should be a floating point number between 0.000001 to 0.05 exclusive.\n");
 	printf("-weight <float>, a real number to include edge weight.\n");
 	printf("-h, show help message.\n");
 
-	printf("default: -weight 1.0 -bht 1.2 -engt 0.01 -batch 256 -iter 600 -threads MAX -algo 2 -init 0\n\n");
+	printf("default: -weight 1.0 -bht 1.2 -lr 0.01 -batch 256 -iter 600 -threads MAX -algo 2 -init 0\n\n");
 }
 
 void myTest(){
 	Coordinate<VALUETYPE> p1(3,4), p2(2,2), p3(6,3);
 	auto pt = p1.getProjection(p2, p3);
 	printf("x = %f, y = %f\n", pt.x, pt.y);
+	
 
 }
 
 void TestAlgorithms(int argc, char *argv[]){
-	VALUETYPE energyThreshold = 0.01, bhThreshold = 1.2, weight = 1.0;
-	INDEXTYPE init = 0, batchsize = 256, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2;
-	string inputfile = "", initfile = "", outputfile = "", algoname = "CACHE", initname = "GREEDY";
+	VALUETYPE lr = 0.004, bhThreshold = 1.2, weight = 1.0;
+	INDEXTYPE init = 0, batchsize = 256, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 3;
+	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	for(int p = 0; p < argc; p++){
 		if(strcmp(argv[p], "-input") == 0){
 			inputfile = argv[p+1];
@@ -95,9 +96,12 @@ void TestAlgorithms(int argc, char *argv[]){
 			initfile = string(argv[p+1]);
 			init = 2;
 		}
-		if(strcmp(argv[p], "-engt") == 0){
-			energyThreshold = atof(argv[p+1]);
-			if(energyThreshold < 0.0 || energyThreshold > 1.0) energyThreshold = 0.01;
+		if(strcmp(argv[p], "-label") == 0){
+                        labelfile = string(argv[p+1]);
+                }
+		if(strcmp(argv[p], "-lr") == 0){
+			lr = atof(argv[p+1]);
+			if(lr < 0.0 || lr > 0.05) lr = 0.005;
 		}
 		if(strcmp(argv[p], "-weight") == 0){
 			weight = atof(argv[p+1]);
@@ -136,25 +140,24 @@ void TestAlgorithms(int argc, char *argv[]){
 		}
 	}
 	vector<VALUETYPE> outputvec;
-	algorithms algo = algorithms(A_csr, inputfile, outputfile, init, weight, energyThreshold, initfile);
+	algorithms algo = algorithms(A_csr, inputfile, outputfile, labelfile, init, weight, lr, initfile);
 	if(algoOption == 0){//sequential algo
 		algoname = "SEQ";
                 numberOfThreads = 1;
                 batchsize = 1;
-		outputvec = algo.seqAdjForceDirectedAlgorithm(iterations);
 	}else if(algoOption == 1){//naive parallel algo
                 algoname = "NAIVE";
-		outputvec = algo.naiveParallelForceDirectedAlgorithm(iterations, numberOfThreads);
 	}else if(algoOption == 2){//cache block minibatch algo
 		algoname = "BATCHPRED";
-		if(fabs(energyThreshold - 0.01) > 0){
+		if(fabs(lr - 0.01) > 0){
 			outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
 		}else{
                 	outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
 		}
 	}else if(algoOption == 3){//linlog mode
 		algoname = "LINLOG";
-                outputvec = algo.LinLogcacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
+		outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm2(iterations, numberOfThreads, batchsize);
+                //outputvec = algo.LinLogcacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
 	}else if(algoOption == 4){//barnes-hut approximation
 		algoname = "BHCACHE";
 		
@@ -173,7 +176,7 @@ void TestAlgorithms(int argc, char *argv[]){
 		outputvec = algo.FAcacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
 	}else if(algoOption == 9){
 		algoname = "MINIB";
-		outputvec = algo.miniBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
+		//outputvec = algo.miniBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
 	}
 	string avgfile = "Results.txt";
         ofstream output;

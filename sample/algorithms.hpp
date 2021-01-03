@@ -69,23 +69,26 @@ class algorithms{
 		Coordinate<VALUETYPE>  *nCoordinates, *prevCoordinates;
 		VALUETYPE *sectors;
 		VALUETYPE K = 1.0, C = 1.0, Shift=1.0, init;
-		VALUETYPE minX, minY, maxX, maxY, W, threshold, maxV;
+		VALUETYPE minX, minY, maxX, maxY, W, threshold, learningrate, maxV;
 		string filename;
 		string outputdir;
+		string labelfile;
 		string initfile;
+		vector<string> labels;
 		INDEXTYPE rootnode = -1;
 		INDEXTYPE *childcount;
 		INDEXTYPE *visitednodes;
 	public:
-	algorithms(CSR<INDEXTYPE, VALUETYPE> &A_csr, string input, string outputd, int init, double weight, double th, string ifile){
+	algorithms(CSR<INDEXTYPE, VALUETYPE> &A_csr, string input, string outputd, string lfile, int init, double weight, double lr, string ifile){
 		graph.make_empty();
 		graph = A_csr;
 		outputdir = outputd;
+		labelfile = lfile;
 		initfile = ifile;
 		//cout << initfile << endl;
 		W = weight;
 		filename = input;
-		threshold = th;
+		learningrate = lr;
 		nCoordinates = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[A_csr.rows])));
 		prevCoordinates = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[A_csr.rows])));
 		sectors = static_cast<VALUETYPE *> (::operator new (sizeof(VALUETYPE[A_csr.rows*MAX_SECTORS])));
@@ -122,6 +125,24 @@ class algorithms{
 				childcount[root] += childcount[graph.colids[i]];
 			}
 		}
+	}
+	bool comp(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B){
+		return A.y > B.y;
+	}
+	void readlabels(){
+		cout << "Reading Label File:" << labelfile << endl;
+		ifstream infile(labelfile);
+                if(infile.is_open()){
+                        int index = 0;
+                        string line;
+                        while(getline(infile, line)){
+				short int l = (short int)line.length();
+                                nCoordinates[index].z = l;
+				//printf("%d: length = %d\n", index, nCoordinates[index].z);
+                                index++;
+                        }
+                }
+                infile.close();
 	}
 	INDEXTYPE findRoot(){
 		VALUETYPE degcen[graph.rows] = {0.0};
@@ -292,243 +313,6 @@ class algorithms{
 		return STEP;
 	}
 	
-	//sequantial implementation of O(n^2) algorithm
-	vector<VALUETYPE> seqForceDirectedAlgorithm(INDEXTYPE ITERATIONS){
-		INDEXTYPE LOOP = 0;
-		VALUETYPE start, end, ENERGY, ENERGY0;
-		VALUETYPE STEP = 1.0;
-		vector<VALUETYPE> result;
-		ENERGY0 = ENERGY = numeric_limits<VALUETYPE>::max();
-		start = omp_get_wtime();
-		if(init == 0){
-                        initDFS(0);
-                }else if(init == 2){
-			fileInitialization();
-		}
-                else{
-                        randInit();
-                }
-		while(LOOP < ITERATIONS){
-			ENERGY0 = ENERGY;
-			ENERGY = 0;
-			Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-			INDEXTYPE j;
-			INDEXTYPE k;
-			for(INDEXTYPE i = 0; i < graph.rows; i++){
-				f = Coordinate <VALUETYPE>(0.0, 0.0);
-				k = graph.rowptr[i];
-				for(j = 0; j < graph.rows; j++){
-                               		if(j == graph.colids[k]){
-						f = f + (this->nCoordinates[j] - this->nCoordinates[i]) * (W * (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude());
-                                                if(k < graph.rowptr[i+1] - 1){
-							k++;
-						}
-					}
-                               		else{
-						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
-						if(dist > 0.0)
-                                                        f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / dist);
-					}
-				}
-				this->nCoordinates[i] = this->nCoordinates[i] + f.getUnitVector() * STEP;
-                                ENERGY = ENERGY + f.getMagnitude2();
-			}
-			STEP = updateStepLength(STEP, ENERGY, ENERGY0);
-			LOOP++;
-		}
-		end = omp_get_wtime();
-		cout << "Sequential" << endl;
-		cout << "Energy:" << ENERGY << endl;
-		cout << "Sequential Wall time required:" << end - start << endl;
-		result.push_back(ENERGY);
-		result.push_back(end - start);
-		writeToFile("SEQU" + to_string(ITERATIONS));
-		return result;
-	}
-	
-	vector<VALUETYPE> seqAdjForceDirectedAlgorithm(INDEXTYPE ITERATIONS){
-                INDEXTYPE LOOP = 0;
-                VALUETYPE start, end, ENERGY, ENERGY0;
-                VALUETYPE STEP = 1.0;
-		vector<int> adjvect(graph.rows, 0);
-                vector<VALUETYPE> result;
-                ENERGY0 = ENERGY = numeric_limits<VALUETYPE>::max();
-                start = omp_get_wtime();
-                if(init == 0){
-                        initDFS(0);
-                }else if(init == 2){
-                        fileInitialization();
-                }
-                else{
-                        randInit();
-                }
-                while(LOOP < ITERATIONS){
-                        ENERGY0 = ENERGY;
-                        ENERGY = 0;
-                        Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-                        INDEXTYPE j;
-                        INDEXTYPE k;
-                        for(INDEXTYPE i = 0; i < graph.rows; i++){
-                                f = Coordinate <VALUETYPE>(0.0, 0.0);
-				for(j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
-					adjvect[graph.colids[j]] = 1;
-				}
-                                for(j = 0; j < graph.rows; j++){
-                                        if(adjvect[j] == 1){
-						adjvect[j] = 0;
-                                                f = f + (this->nCoordinates[j] - this->nCoordinates[i]) * (W * (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude()/K);
-                                        }
-                                        else{
-                                                if((this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2() > 0)
-                        				f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 /(this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2());
-                                        }
-                                }
-                                this->nCoordinates[i] = this->nCoordinates[i] + f.getUnitVector() * STEP;
-                                ENERGY = ENERGY + f.getMagnitude2();
-                        }
-                        STEP = updateStepLength(STEP, ENERGY, ENERGY0);
-                        LOOP++;
-                }
-                end = omp_get_wtime();
-		cout << "Adj Sequential" << endl;
-                cout << "Energy Adj:" << ENERGY << endl;
-                cout << "Sequential Adj Wall time required:" << end - start << endl;
-                result.push_back(ENERGY);
-                result.push_back(end - start);
-                writeToFile("SEQUADJ" + to_string(ITERATIONS));
-                return result;
-        }
-	
-	vector<VALUETYPE> naiveParallelForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS){
-                INDEXTYPE LOOP = 0;
-		VALUETYPE start, end, ENERGY, ENERGY0;
-		VALUETYPE STEP = 1.0;
-		vector<VALUETYPE> result;
-		ENERGY = numeric_limits<VALUETYPE>::max();
-		omp_set_num_threads(NUMOFTHREADS);
-		start = omp_get_wtime();
-		if(init == 0){
-                        initDFS(0);
-                }else if(init == 2){
-                        fileInitialization();
-                }
-                else{
-                        randInit();
-                }
-		while(LOOP < ITERATIONS){
-			ENERGY0 = ENERGY;
-			ENERGY = 0;
-			Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-			INDEXTYPE j, k;
-			for(INDEXTYPE i = 0; i < graph.rows; i++){
-				f = Coordinate <VALUETYPE>(0.0, 0.0);
-				#pragma omp parallel for reduction(plus:f)
-				for(INDEXTYPE j = 0; j < graph.rows; j++){
-					if(i == j){
-						f += calcAttraction(i, j);
-                                	}else{
-						f += calcRepulsion(i, j);
-                               		}
-				}
-				#
-				this->nCoordinates[i] = this->nCoordinates[i] + f.getUnitVector() * STEP;
-				ENERGY = ENERGY + f.getMagnitude2();
-			}
-			STEP = STEP * t;
-			LOOP++;
-		}
-		end = omp_get_wtime();
-		cout << "Naive parallel" << endl;
-                cout << "Naive Energy:" << ENERGY << endl;
-		result.push_back(ENERGY);
-                cout << "Naive Parallel Wall time:" << end - start << endl;
-		result.push_back(end - start);
-                writeToFile("NAIVEPARA" + to_string(ITERATIONS));
-		return result;
-        }	
-		
-	vector<VALUETYPE> miniBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE){
-                srand(unsigned(time(0)));
-		INDEXTYPE LOOP = 0;
-                VALUETYPE start, end, ENERGY, ENERGY0, ATTRACTIVEENERGY;
-                VALUETYPE STEP = 1.0;
-                vector<VALUETYPE> result;
-                vector<INDEXTYPE> indices;
-                for(INDEXTYPE i = 0; i < graph.rows; i++) indices.push_back(i);
-                ENERGY0 = ENERGY = numeric_limits<VALUETYPE>::max();
-                omp_set_num_threads(NUMOFTHREADS);
-                start = omp_get_wtime();
-		if(init == 0){
-                        initDFS(0);
-                }else if(init == 2){
-                        fileInitialization();
-                }
-                else{
-                        randInit();
-                }
-		double FLOPS = 0.0;
-                while(LOOP < ITERATIONS){
-		//while((ENERGY0 - ENERGY)/ ENERGY0 < threshold && LOOP < ITERATIONS){
-                        ENERGY0 = ENERGY;
-                        ENERGY = 0;
-			ATTRACTIVEENERGY = 0;
-			//double s = omp_get_wtime();
-			__gnu_parallel::random_shuffle(indices.begin(), indices.end());
-			//double e = omp_get_wtime();
-			//cout << "RS:" << e - s << endl;
-			/*cout << LOOP << ":";
-			for(int i=0; i < 10; i++){
-				cout << indices[i] << " ";
-			}
-			cout << endl;
-			*/
-			FLOPS = 0.0;        
-			for(INDEXTYPE b = 0; b < (int)ceil( 1.0 * graph.rows / BATCHSIZE); b += 1){
-                                #pragma omp parallel for schedule(static)	
-				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
-                                        if(i >= graph.rows) continue;
-                                        Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-					Coordinate<VALUETYPE> fattract = Coordinate <VALUETYPE>(0.0, 0.0);
-                                        INDEXTYPE k = graph.rowptr[indices[i]];
-                                        for(INDEXTYPE j = 0; j < graph.rows; j++){
-						if(j == graph.colids[k]){
-                                                	f += (nCoordinates[j] - nCoordinates[indices[i]]) * (W * (nCoordinates[j] - nCoordinates[indices[i]]).getMagnitude());
-							//fattract += (nCoordinates[j] - nCoordinates[indices[i]]) * ((nCoordinates[j] - nCoordinates[indices[i]]).getMagnitude()/K);
-                                                        if(k < graph.rowptr[indices[i]+1]-1){
-                                                                k++;
-                                                        }
-						}else{
-                                                        if((this->nCoordinates[j] - this->nCoordinates[indices[i]]).getMagnitude2() > 0)
-                        				{
-								f = f - (this->nCoordinates[j] - this->nCoordinates[indices[i]]) * (1.0 /(this->nCoordinates[j] - this->nCoordinates[indices[i]]).getMagnitude2());
-								//fattract += (this->nCoordinates[j] - this->nCoordinates[indices[i]]) * (C * K * K /(this->nCoordinates[j] - this->nCoordinates[indices[i]]).getMagnitude2());
-							}
-                                                }
-                                        }
-                                        prevCoordinates[indices[i]] = f;
-                                        //ENERGY += f.getMagnitude2();
-					//ATTRACTIVEENERGY += fattract.getMagnitude2();
-				}
-				//#pragma omp for simd schedule(static) 
-                                for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
-                                        if(i >= graph.rows) continue;
-                                        nCoordinates[indices[i]] = nCoordinates[indices[i]] + prevCoordinates[indices[i]].getUnitVector() * STEP;
-                                	ENERGY += prevCoordinates[indices[i]].getMagnitude2();
-				}
-                        }
-			STEP = STEP * 0.999;
-                        LOOP++;
-                }
-		end = omp_get_wtime();
-                cout << "Final Minibatch Size:" << BATCHSIZE << endl;
-                cout << "FinalMinbatch Energy:" << ENERGY << endl;
-                result.push_back(ENERGY);
-                cout << "Final Minibatch Parallel Wall time required:" << end - start << endl;
-                result.push_back(end - start);
-                writeToFile("MINB"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(ITERATIONS));
-                return result;
-	}
-
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithmSD(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
 		INDEXTYPE LOOP = 0;
                 INDEXTYPE blocky = 512, blockx = 2;
@@ -606,6 +390,16 @@ class algorithms{
 		return checkTriples(A,C,D) != checkTriples(B,C,D) and checkTriples(A,B,C) != checkTriples(A,B,D);
 	}
 
+	bool checkOverlap(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B){
+		VALUETYPE offsetA = A.z * maxV * 1.5 / 800.0;
+		VALUETYPE offsetB = B.z * maxV * 1.5 / 800.0;
+		VALUETYPE h = 6;
+    		if((A.x - offsetA < B.x + offsetB && B.x - offsetB < A.x + offsetA) && (A.y + h > B.y - h && A.y - h < B.y + h))
+			return true;
+		else
+			return false;
+	}
+
 	bool checkCrossing(INDEXTYPE LOOP){
 		bool flag = false;
 		#pragma omp parallel
@@ -661,9 +455,20 @@ class algorithms{
 		return flag;
 	}
 	void rescaleLayout(VALUETYPE scalefactor = 2.0){
-		for(INDEXTYPE i = 0; i < graph.rows; i++){
-                        nCoordinates[i].x = nCoordinates[i].x * scalefactor;
-			nCoordinates[i].y = nCoordinates[i].y * 2.0 * scalefactor;
+		bool flag = true;
+		int loop = 40;
+		while(flag){
+			flag = false;
+			for(INDEXTYPE i = 0; i < graph.rows; i++){
+				for(INDEXTYPE j = 0; j < graph.rows; j++){
+					if(i == j) continue;
+					if(checkOverlap(nCoordinates[i], nCoordinates[j])){
+						
+					}
+				}
+			}
+			if(loop < 0) break;
+			loop--;
 		}
 	}
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm2(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
@@ -671,11 +476,12 @@ class algorithms{
                 INDEXTYPE blocky = 512, blockx = 2;
 		VALUETYPE dedgelength = 10.0;
                 VALUETYPE start, end, ENERGY, ENERGY0;
-                VALUETYPE STEP = 0.005;
+                VALUETYPE STEP = learningrate;
                 vector<VALUETYPE> result;
                 vector<INDEXTYPE> indices;
                 vector<int> kindex(graph.rows, 0);
                 VALUETYPE delta = 10.0;
+		if(labelfile.size() > 0) readlabels();
                 printf("Calling findRoot...\n");
                 INDEXTYPE root = findRoot();
                 printf("Root = %d\n", root);
@@ -731,14 +537,18 @@ class algorithms{
                                                 if(dist > 0){
                                                         f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
                                                 }
+						if(checkOverlap(nCoordinates[i], nCoordinates[j]) && dist > 0){
+							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
+						}
                                         }
+					/*
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
 						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
                                                 if(dist < dedgelength)
-							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * ( (delta * delta) / (dist)));
+							f = f - (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * ( (delta * delta) / (dist)));
                                         	else
 							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
-					}
+					}*/
 					prevCoordinates[i] += f;
 				}
 				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
@@ -755,6 +565,8 @@ class algorithms{
 						//printf("i:%d = (%lf, %lf), j:(%lf, %lf)\n", i, p.x, p.y, nCoordinates[i].x, nCoordinates[i].y);
 						nCoordinates[i] = p;
 					}
+					maxV = max(maxV, fabs(nCoordinates[i].x));
+					maxV = max(maxV, fabs(nCoordinates[i].y));
 				}
 				if(checkCrossing(LOOP)){
 					printf("Dead End!\n");
@@ -765,7 +577,7 @@ class algorithms{
 			LOOP++;
 		}
 		end = omp_get_wtime();
-		rescaleLayout(5);
+		//rescaleLayout(105.0);
                 if(flag == 0){
                 cout << "Cache Blocking Minibatch Size:" << BATCHSIZE  << endl;
                 cout << "Cache Blocking Minbatch Energy:" << ENERGY << endl;
