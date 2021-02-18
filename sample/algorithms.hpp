@@ -91,7 +91,6 @@ class algorithms{
 		learningrate = lr;
 		nCoordinates = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[A_csr.rows])));
 		prevCoordinates = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[A_csr.rows])));
-		sectors = static_cast<VALUETYPE *> (::operator new (sizeof(VALUETYPE[A_csr.rows*MAX_SECTORS])));
 		this->init = init;
 		childcount = static_cast<INDEXTYPE *> (::operator new (sizeof(INDEXTYPE[A_csr.rows])));
 		visitednodes = static_cast<INDEXTYPE *> (::operator new (sizeof(INDEXTYPE[A_csr.rows])));
@@ -107,12 +106,15 @@ class algorithms{
 		#pragma omp parallel for schedule(static)
 		for(INDEXTYPE i = 0; i < graph.rows; i++){
 			VALUETYPE x, y;
+			//x = -1.0 + 2.0 * rand()/(RAND_MAX+1.0);
+			//y = -1.0 + 2.0 * rand()/(RAND_MAX+1.0);
 			do{
 				x = -1.0 + 2.0 * rand()/(RAND_MAX+1.0);
 				y = -1.0 + 2.0 * rand()/(RAND_MAX+1.0);
 			}while(x * x + y * y > 1.0);
 			x = x * MAXMIN;
 			y = y * MAXMIN;
+			
 			nCoordinates[i] = Coordinate <VALUETYPE>(x, y, i);
 		}
 	}
@@ -235,6 +237,10 @@ class algorithms{
 			maxV = max(maxV, fabs(minY));
 		}
         }
+	INDEXTYPE randIndex(INDEXTYPE max_num, INDEXTYPE min_num){
+        	const INDEXTYPE newIndex = (rand() % (max_num - min_num)) + min_num;
+        	return newIndex;
+	}
 	VALUETYPE scaleX(VALUETYPE x){
 		if(x > maxX) return maxX;
 		else if(x < minX) return minX;
@@ -350,15 +356,20 @@ class algorithms{
 					//#pragma omp simd
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
 						int v = graph.colids[j];
+						if(((this->nCoordinates[v] - this->nCoordinates[i]).getMagnitude2()) > 0)
 						prevCoordinates[i] += (this->nCoordinates[v] - this->nCoordinates[i]) * (W * (this->nCoordinates[v] - this->nCoordinates[i]).getMagnitude()) + (this->nCoordinates[v] - this->nCoordinates[i]) * (1.0 / ((this->nCoordinates[v] - this->nCoordinates[i]).getMagnitude2()));
+						else
+						prevCoordinates[i] += (this->nCoordinates[v] - this->nCoordinates[i]) * (W * (this->nCoordinates[v] - this->nCoordinates[i]).getMagnitude());
 					}
 					Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
 					//#pragma omp simd
                                         for(INDEXTYPE j = 0; j < i; j += 1){
+						if(((this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2()) > 0)
 						f += (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / ((this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2()));
                                         }
 					//#pragma omp simd
 					for(INDEXTYPE j = i+1; j < graph.rows; j += 1){
+						if(((this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2()) > 0)
 						f += (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / ((this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2()));
 					}
 					prevCoordinates[i] = prevCoordinates[i] - f;
@@ -417,9 +428,6 @@ class algorithms{
                                         		if(i == k || graph.colids[j] == graph.colids[l]) continue;
                                                 	if(i == graph.colids[l] || k == graph.colids[j]) continue;
                                                 	if(checkIntersection(nCoordinates[i], nCoordinates[graph.colids[j]], nCoordinates[k], nCoordinates[graph.colids[l]])){
-                                                		//printf("Crossing Found! IT=%d, i=%d,j=%d,k=%d,l=%d\n", LOOP, i, graph.colids[j], k, graph.colids[l]);
-                                                        	//printf("i:%d = (%lf, %lf), j:%d = (%lf, %lf)\n", i, nCoordinates[i].x, nCoordinates[i].y, graph.colids[j], nCoordinates[graph.colids[j]].x, nCoordinates[graph.colids[j]].y);
-                                                        	//printf("k:%d = (%lf, %lf), l:%d = (%lf, %lf)\n", k, nCoordinates[k].x, nCoordinates[k].y, graph.colids[l], nCoordinates[graph.colids[l]].x, nCoordinates[graph.colids[l]].y);
                                                         	flag = true;//return true;//exit(0);
                                                 	}
                                         	}
@@ -429,6 +437,23 @@ class algorithms{
 		}
 		return flag;
 	}
+	bool checkCrossingSeq(INDEXTYPE LOOP){
+                bool flag = false;
+                for(INDEXTYPE i = 0; i < graph.rows && flag == false; i++){
+                	for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1] && flag == false; j++){
+                        	for(INDEXTYPE k = 0; k < graph.rows && flag == false; k++){
+                                	for(INDEXTYPE l = graph.rowptr[k]; l < graph.rowptr[k+1]; l++){
+                                        	if(i == k || graph.colids[j] == graph.colids[l]) continue;
+                                                if(i == graph.colids[l] || k == graph.colids[j]) continue;
+                                                if(checkIntersection(nCoordinates[i], nCoordinates[graph.colids[j]], nCoordinates[k], nCoordinates[graph.colids[l]])){                                                    
+                                                	flag = true;//return true;//exit(0);
+                                                }
+                                        }
+                                }
+                        }
+                }
+                return flag;
+        }
 	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N){
 		bool flag = false;
 		#pragma omp parallel
@@ -454,22 +479,49 @@ class algorithms{
 		}
 		return flag;
 	}
-	void rescaleLayout(VALUETYPE scalefactor = 2.0){
+	void rescaleLayout(INDEXTYPE maxloop = 25, INDEXTYPE BATCHSIZE=128, VALUETYPE STEP=0.01){
 		bool flag = true;
-		int loop = 40;
+		int loop = maxloop;
+		printf("Running rescaling function...\n");
 		while(flag){
 			flag = false;
-			for(INDEXTYPE i = 0; i < graph.rows; i++){
-				for(INDEXTYPE j = 0; j < graph.rows; j++){
-					if(i == j) continue;
-					if(checkOverlap(nCoordinates[i], nCoordinates[j])){
-						
+			for(INDEXTYPE k = 0; k < graph.rows; k++){
+                                prevCoordinates[k] = Coordinate <VALUETYPE>(0.0, 0.0);
+                        }
+ 			for(INDEXTYPE b = 0; b < (int)ceil( 1.0 * graph.rows / BATCHSIZE); b += 1){
+                                #pragma omp parallel for schedule(static)
+                                for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i += 1){
+                                        if(i >= graph.rows)continue;
+                                        Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
+					for(INDEXTYPE j = 0; j < graph.rows; j++){
+						if(i == j) continue;
+						if(checkOverlap(nCoordinates[i], nCoordinates[j])){
+							VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
+							if(dist > 0.0)
+							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / (dist));	
+							flag = true;
+						}
 					}
+					prevCoordinates[i] += f;
 				}
+				#pragma omp parallel for
+                                for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
+                                        if(i >= graph.rows) continue;
+                                        auto p = Coordinate <VALUETYPE>(0.0, 0.0);
+                                        p.x = nCoordinates[i].x;
+                                        p.y = nCoordinates[i].y;
+                                        nCoordinates[i] += prevCoordinates[i].getUnitVector() * STEP;
+                                        if(hasEdgeCrossing(loop, i, nCoordinates[i])){
+                                                nCoordinates[i] = p;
+                                        }
+					maxV = max(maxV, fabs(nCoordinates[i].x));
+                                        maxV = max(maxV, fabs(nCoordinates[i].y));
+                                }
 			}
 			if(loop < 0) break;
 			loop--;
 		}
+		printf("Final Loop: %d\n", loop);
 	}
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm2(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
                 INDEXTYPE LOOP = 0;
@@ -541,14 +593,15 @@ class algorithms{
 							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
 						}
                                         }
-					/*
+					
 					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
-						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
-                                                if(dist < dedgelength)
+						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude();
+                                                if(dist < dedgelength && dist > 0.0)
 							f = f - (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * ( (delta * delta) / (dist)));
-                                        	else
-							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
-					}*/
+                                        	else if(dist > 0.0)
+							f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((0.05 / delta) * dist);
+					}
+					
 					prevCoordinates[i] += f;
 				}
 				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
@@ -556,8 +609,6 @@ class algorithms{
 					auto p = Coordinate <VALUETYPE>(0.0, 0.0);
 					p.x = nCoordinates[i].x;
 					p.y = nCoordinates[i].y;
-					//nCoordinates[i].x = scaleX(nCoordinates[i].x + STEP * prevCoordinates[i].x);
-					//nCoordinates[i].y = scaleY(nCoordinates[i].y + STEP * prevCoordinates[i].y);
 					nCoordinates[i].x = nCoordinates[i].x + STEP * prevCoordinates[i].x;
                                         nCoordinates[i].y = nCoordinates[i].y + STEP * prevCoordinates[i].y;
 					//if(hasEdgeCrossing(LOOP, i, nCoordinates[i])){
@@ -577,7 +628,7 @@ class algorithms{
 			LOOP++;
 		}
 		end = omp_get_wtime();
-		//rescaleLayout(105.0);
+		rescaleLayout(105, BATCHSIZE, STEP);
                 if(flag == 0){
                 cout << "Cache Blocking Minibatch Size:" << BATCHSIZE  << endl;
                 cout << "Cache Blocking Minbatch Energy:" << ENERGY << endl;
@@ -589,281 +640,104 @@ class algorithms{
                 return result;
 	}
 
-	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
-                INDEXTYPE LOOP = 0;
-		INDEXTYPE blocky = 512, blockx = 2;
-                VALUETYPE start, end, ENERGY, ENERGY0;
-                VALUETYPE STEP = 1.0;
+	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, int flag = 0){
+        	INDEXTYPE LOOP = 0, DIM = 2;
+        	Coordinate<VALUETYPE>  *samples;
+		samples = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[ns])));
+		VALUETYPE STEP = learningrate;
                 vector<VALUETYPE> result;
+		VALUETYPE start, end, ENERGY, ENERGY0;
                 vector<INDEXTYPE> indices;
-		vector<int> kindex(graph.rows, 0);
-		VALUETYPE delta = 10.0;
-		printf("Calling findRoot...\n");
-		INDEXTYPE root = findRoot();
-		printf("Root = %d\n", root);
-		printf("Calling ChildCount..\n");
-		visitednodes[root] = 1;	
-		countNumOfChildren(root);
-		/*
-		for(INDEXTYPE k = 0; k < graph.rows; k++){
-			printf("Subtree node %d: count = %d\n", k, childcount[k]);
-		}
-		*/
-		if(delta < 1.0){
-			printf("Normalizing...\n");
-			for(INDEXTYPE k = 0; k < graph.rows; k++){
-				for(INDEXTYPE j = graph.rowptr[k]; j < graph.rowptr[k+1]; j++){
-					delta += (nCoordinates[k] - nCoordinates[graph.colids[j]]).getMagnitude();
-				}
-			}
-			delta = delta / graph.rows;
-		}
+		for(INDEXTYPE i = 0; i < graph.rows; i++) indices.push_back(i);
+		if(labelfile.size() > 0) readlabels();
+                printf("From Option 2: Calling findRoot...\n");
+                INDEXTYPE root = findRoot();
+                printf("Root = %d\n", root);
+                printf("Calling ChildCount..\n");
+                visitednodes[root] = 1;
+                countNumOfChildren(root);
                 ENERGY0 = numeric_limits<VALUETYPE>::max();
                 ENERGY = 0;
-		INDEXTYPE *twoends = static_cast<INDEXTYPE *> (::operator new (sizeof(INDEXTYPE[graph.rows*2])));
-		VALUETYPE gamma = 4 * delta;
                 omp_set_num_threads(NUMOFTHREADS);
                 start = omp_get_wtime();
-		printf("Number of threads = %d\n", omp_get_num_threads());
-		if(flag == 0){
-		if(init == 0){
-                        initDFS(root);
-                }else if(init == 2){
-                        fileInitialization();
-                }
-                else{
-                        randInit();
-                }}else{
-			STEP = pow(0.999, 4 * ITERATIONS);
-		}
-		VALUETYPE angle = getAngle(Coordinate <VALUETYPE>(-10.0, -10.0));
-		printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
-		printf("After initialization...\n");
-		checkCrossing(-1);
-		while(LOOP < ITERATIONS){
-			ENERGY0 = ENERGY;
-                        ENERGY = 0;
-			#pragma omp parallel for simd proc_bind(close)
-                        for(INDEXTYPE k = 0; k < graph.rows; k++){
-                        	kindex[k] = graph.rowptr[k];
-                        	prevCoordinates[k] = Coordinate <VALUETYPE>(0.0, 0.0);
-				for(INDEXTYPE j = 0; j < MAX_SECTORS; j++){
-					sectors[k * MAX_SECTORS + j] = numeric_limits<VALUETYPE>::max();
-				}
-			}
-			for(INDEXTYPE b = 0; b < (int)ceil( 1.0 * graph.rows / BATCHSIZE); b += 1){
-				#pragma omp parallel for schedule(static)
-				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i += 1){
-                                	if(i >= graph.rows)continue;
-					Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
-					//node-node repulsion
-                                	for(INDEXTYPE j = 0; j < graph.rows; j += 1){
-						VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
-						if(dist > 0){
-							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * ((delta * delta) / (dist));
-						}
-					}
-					if(isnan(f.x)){printf(">R<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
-					//node-node on edge attraction
-					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j += 1){
-						f += (nCoordinates[graph.colids[j]] - nCoordinates[i]) * ((1.0 / delta) * (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude());
-					}
-					if(isnan(f.x)){printf("<A>Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, i, f.x, f.y, delta);exit(0);}
-					//node-edge repulsion
-					Coordinate<VALUETYPE> fe = f;//Coordinate <VALUETYPE>(0.0, 0.0);
-					for(INDEXTYPE k = 0; k < graph.rows; k += 1){
-						if(i == k) continue;
-						for(INDEXTYPE j = graph.rowptr[k]; j < graph.rowptr[k+1]; j++){
-							if(graph.colids[j] == i) continue;
-							//calc projection
-							auto projCoordinates = nCoordinates[i].getProjection(nCoordinates[k], nCoordinates[graph.colids[j]]);
-							auto diff = projCoordinates - nCoordinates[i];
-							INDEXTYPE sec = 0;
-							if(projCoordinates.isOnEdge(nCoordinates[k], nCoordinates[graph.colids[j]])){
-								VALUETYPE dist2 = diff.getMagnitude();
-								if (dist2 <= gamma && dist2 > 0.0){
-                                                			auto tf = (projCoordinates - nCoordinates[i]) * ((gamma - dist2) * (gamma - dist2) / dist2);	
-                                        				fe = fe - tf;
-									
-									//problematic updates (false sharing)
-									prevCoordinates[k] = prevCoordinates[k] + tf;
-									prevCoordinates[graph.colids[j]] = prevCoordinates[graph.colids[j]] + tf;
-								}
-								if(isnan(fe.x)){
-									printf(">E<Problem: it=%d, V1=%d, V2=%d, %lf, %lf, delta=%lf\n", LOOP, i, k, fe.x, fe.y, delta);
-									exit(0);
-								}
-								//identify sector
-								if(diff.x >= 0){
-									if(diff.y >= 0){
-										if(diff.x >= diff.y){
-											sec = 1;
-										}else{
-											sec = 2;
-										}
-									}else{
-										if(diff.x >= -diff.y){
-											sec = 8;
-										}else{
-											sec = 7;
-										}
-									}
-								}else{
-									if(diff.y >= 0){
-										if(-diff.x >= diff.y){
-											sec = 4;
-										}else{
-											sec = 3;
-										}
-									}else{
-										if(-diff.x >= -diff.y){
-											sec = 5;
-										}else{
-											sec = 6;
-										}
-									}
-								}
-							
-								if(sec == 0)printf("Sector Not Identified !!\n");
-								//update maximum movement in each sector
-								//for(INDEXTYPE v = 1; v < MAX_SECTORS; v++){
-								for(INDEXTYPE v = sec - 2; v <= sec + 2; v++){
-									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
-									if(val <= 0) val += (MAX_SECTORS-1);
-									if(dist2 / 3.0 < sectors[i * MAX_SECTORS + val]){
-										twoends[i*2] = k;
-										twoends[i*2+1] = graph.colids[j];
-										sectors[i * MAX_SECTORS + val] = dist2 / 3.0;
-									}
-								}
-								for(INDEXTYPE v = sec + 2; v <= sec + 6; v++){
-									auto val = 1 + ((v-1) % (MAX_SECTORS-1));
-									if(val <= 0) val += (MAX_SECTORS-1);
-									//problematic updates (false sharing)
-									if(sectors[k * MAX_SECTORS + val] > dist2 / 3.0){
-										sectors[k * MAX_SECTORS + val] = min(sectors[k * MAX_SECTORS + val], dist2 / 3.0);
-										twoends[k*2] = k;
-										twoends[k*2+1] = graph.colids[j];
-									}
-									if(sectors[graph.colids[j] * MAX_SECTORS + val] > dist2 / 3.0){
-										sectors[graph.colids[j] * MAX_SECTORS + val] = min(sectors[graph.colids[j] * MAX_SECTORS + val], dist2 / 3.0);
-										twoends[graph.colids[j]*2] = k;
-										twoends[2*graph.colids[j]+1] = graph.colids[j];
-									}	
-								}
-								
-							}else{
-								auto distKI = (nCoordinates[k] - nCoordinates[i]).getMagnitude();
-								auto distJI = (nCoordinates[graph.colids[j]] - nCoordinates[i]).getMagnitude();
-								for(INDEXTYPE v = 1; v < MAX_SECTORS; v++){
-									if(sectors[i * MAX_SECTORS + v] > min(distKI, distJI)/3.0){
-										sectors[i * MAX_SECTORS + v] = min(sectors[i * MAX_SECTORS + v], min(distKI, distJI)/3.0);
-										twoends[i*2] = k;
-										twoends[i*2+1] = graph.colids[j];
-									}	
-									//problematic updates (false sharing)
-									sectors[k * MAX_SECTORS + v] = min(sectors[k * MAX_SECTORS + v], distKI / 3.0);
-									sectors[graph.colids[j] * MAX_SECTORS + v] = min(sectors[graph.colids[j] * MAX_SECTORS + v], distJI / 3.0);
-								}
-								
-							}
-						}
-					}
-					prevCoordinates[i] += fe;
+                printf("Number of threads = %d\n", omp_get_num_threads());
+		initDFS(root);
+                VALUETYPE angle = getAngle(Coordinate <VALUETYPE>(-10.0, -10.0));
+                printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
+                printf("After initialization...\n");
+                if(!checkCrossing(-1))printf("No Crossing After initialization...\n");
 
-				}
-				/*for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
-					if(i >= graph.rows) continue;
-					for(INDEXTYPE j = 0; j < MAX_SECTORS; j++) printf("i=%d, j=%d, max=%lf:",i,j,sectors[i * MAX_SECTORS + j]);
-					printf("\n");
-				}
-				*/
-				//moving vertices based on forces
-				#pragma omp parallel for
-                                for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
+		#pragma omp parallel for simd proc_bind(close)
+		for(INDEXTYPE k = 0; k < graph.rows; k++){
+                	prevCoordinates[k] = Coordinate <VALUETYPE>(0.0, 0.0);
+                }
+		VALUETYPE dedgelength = 20.0;
+	        while(LOOP < ITERATIONS){
+        	        ENERGY0 = ENERGY;
+                	ENERGY = 0;
+                	for(INDEXTYPE b = 0; b < (int)ceil( 1.0 * graph.rows / BATCHSIZE); b += 1){
+                        	INDEXTYPE baseindex = b * BATCHSIZE;
+                        	for(INDEXTYPE s = 0; s < ns; s++){
+                                	INDEXTYPE rindex = randIndex(graph.rows-1, 0);
+                                	samples[s] = nCoordinates[rindex];
+                        	}
+                        	#pragma omp parallel for schedule(static)
+				for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
                                         if(i >= graph.rows) continue;
-					INDEXTYPE sec = 0;
-					if(prevCoordinates[i].x >= 0){
-                                        	if(prevCoordinates[i].y >= 0){
-                                                	if(prevCoordinates[i].x >= prevCoordinates[i].y){
-                                                        	sec = 1;
-                                                        }else{
-                                                                sec = 2;
-                                                        }
-                                                }else{
-                                                	if(prevCoordinates[i].x >= -prevCoordinates[i].y){
-                                                        	sec = 8;
-                                                        }else{
-                                                        	sec = 7;
-                                                        }
-                                                }
-                                        }else{
-                                        	if(prevCoordinates[i].y >= 0){
-                                                	if(-prevCoordinates[i].x >= prevCoordinates[i].y){
-                                                        	sec = 4;
-                                                        }else{
-                                                        	sec = 3;
-                                                        }
-                                                 }else{
-                                                 	if(-prevCoordinates[i].x >= -prevCoordinates[i].y){
-                                                        	sec = 5;
-                                                        }else{
-                                                        	sec = 6;
-                                                        }
-                                                 }
-                                        }
-					assert(sec!=0);
-					auto movelen = prevCoordinates[i].getMagnitude();
-					ENERGY += prevCoordinates[i].getMagnitude2();
-					if(movelen > sectors[i * MAX_SECTORS + sec]){
-						auto x = nCoordinates[i].x;
-						auto y = nCoordinates[i].y;
-						nCoordinates[i].x = scaleX(nCoordinates[i].x + (prevCoordinates[i].x / movelen) * sectors[i * MAX_SECTORS + sec]);
-						nCoordinates[i].y = scaleY(nCoordinates[i].y + (prevCoordinates[i].y / movelen) * sectors[i * MAX_SECTORS + sec]);
-						if(checkCrossing(LOOP)){
-                                                	//printf("Partial:i = %d, movelen=%lf, max=%lf, (x = %lf, y = %lf) <= (x = %lf, y = %lf)\n", i, movelen, sectors[i * MAX_SECTORS + sec], nCoordinates[i].x, nCoordinates[i].y, nCoordinates[i].x - (prevCoordinates[i].x / movelen) * sectors[i * MAX_SECTORS + sec], nCoordinates[i].y - (prevCoordinates[i].y / movelen) * sectors[i * MAX_SECTORS + sec]);
-                                                	//printf("TWO ENDS:(%d, %d)\n", twoends[2*i], twoends[2*i+1]);
-							//exit(0);
-							nCoordinates[i].x = x;
-                                                        nCoordinates[i].y = y;
-                                        	}
-					}else{
-						auto x = nCoordinates[i].x;
-                                                auto y = nCoordinates[i].y;
-						nCoordinates[i].x = scaleX(nCoordinates[i].x + prevCoordinates[i].x);
-                                                nCoordinates[i].y = scaleY(nCoordinates[i].y + prevCoordinates[i].y);
-						if(checkCrossing(LOOP)){
-                                                	//printf("All:i = %d, movelen=%lf, max=%lf, x = %lf, y = %lf\n", i, movelen, sectors[i * MAX_SECTORS + sec], nCoordinates[i].x, nCoordinates[i].y);
-                                                	//printf("TWO ENDS:(%d, %d)\n", twoends[2*i], twoends[2*i+1]);
-							//exit(0);
-							nCoordinates[i].x = x;
-                                                        nCoordinates[i].y = y;
+                                        Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
+					Coordinate<VALUETYPE> forceDiff = Coordinate <VALUETYPE>(0.0, 0.0);
+                                        INDEXTYPE k = graph.rowptr[indices[i]];
+					
+					for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
+						INDEXTYPE colj = graph.colids[j];
+						forceDiff = nCoordinates[colj] - nCoordinates[i];
+						auto attrc = forceDiff.getMagnitude2();
+						if(sqrt(attrc) > dedgelength){
+							f += forceDiff * sqrt(attrc);
+						}
+						if(checkOverlap(nCoordinates[i], nCoordinates[colj]) && sqrt(attrc) > 0.0){
+                                        		f -= forceDiff * (1.0 / sqrt(attrc));
                                         	}
 					}
-					prevCoordinates[i].x = 0;
-					prevCoordinates[i].y = 0;
-					twoends[2*i] = -1;
-					twoends[2*i+1] = -1;
-				}
-				if(checkCrossing(LOOP)){
-					printf("Dead End!\n");
-					exit(0);
+                                        for(INDEXTYPE j = 0; j < ns; j++){
+                                        	forceDiff = samples[j] - nCoordinates[i];
+						auto repuls = forceDiff.getMagnitude2();
+						if(repuls > 0.0) f -= forceDiff * (1.0 / repuls); 
+					}
+                                        prevCoordinates[indices[i]] += f;
+                                }
+				#pragma omp parallel for
+                		for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
+                                        if(i >= graph.rows) continue;
+					auto p = Coordinate <VALUETYPE>(0.0, 0.0);
+                                        p.x = nCoordinates[i].x;
+                                        p.y = nCoordinates[i].y;
+                                        nCoordinates[indices[i]] += prevCoordinates[indices[i]].getUnitVector() * STEP;
+					if(hasEdgeCrossing(LOOP, i, nCoordinates[indices[i]])){
+						nCoordinates[indices[i]] = p;
+					}else{
+                                        	ENERGY += prevCoordinates[indices[i]].getMagnitude2();
+                                	}
+					prevCoordinates[indices[i]] = Coordinate <VALUETYPE>(0.0, 0.0);
 				}
 			}
-                        //STEP = STEP * 0.999;
-			LOOP++;
+                	STEP = STEP * 0.999;
+                	LOOP++;
+			printf("Loop Count: %d\n", LOOP);
+        	}
+		if(checkCrossing(LOOP)){
+                	printf("(after forceupdate) Dead End!\n");
                 }
-                end = omp_get_wtime();
-		if(flag == 0){
-                cout << "Cache Blocking Minibatch Size:" << BATCHSIZE  << endl;
-                cout << "Cache Blocking Minbatch Energy:" << ENERGY << endl;
-                cout << "Cache Blocking Minibatch Parallel Wall time required:" << end - start << endl;
-                writeToFile("BatchPrEd"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
+		//rescaleLayout(105, BATCHSIZE, STEP);
+		if(checkCrossing(LOOP)){
+                        printf("(after label attachment) Dead End!\n");
                 }
-		result.push_back(ENERGY);
-		result.push_back(end - start);
+        	end = omp_get_wtime();
+        	cout << "BatchPrEdFA Parallel Wall time required:" << end - start << endl;
+        	result.push_back(end - start);
+        	writeToFile("BatchPrEdFA"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
 		return result;
-        }
+	}
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithmConverged(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){
                 INDEXTYPE LOOP = 0;
                 INDEXTYPE blocky = 512, blockx = 2;
@@ -1275,7 +1149,7 @@ class algorithms{
                         randInit();
                 }
 		BarnesHutApproximation(approxITER, NUMOFTHREADS, BATCHSIZE, 1.2, 1);
-		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 1);	
+		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 6, 0.4, 1);	
 		end = omp_get_wtime();
 		result[1] = end - start;
 		cout << "80%% - 20%% BH - CB" << endl;
