@@ -63,8 +63,8 @@ void myTest(){
 }
 
 void TestAlgorithms(int argc, char *argv[]){
-	VALUETYPE lr = 0.004, bhThreshold = 1.2, weight = 1.0;
-	INDEXTYPE init = 0, batchsize = 256, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 3;
+	VALUETYPE lr = 1.0, bhThreshold = 1.2, weight = 1.0;
+	INDEXTYPE init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	for(int p = 0; p < argc; p++){
 		if(strcmp(argv[p], "-input") == 0){
@@ -76,6 +76,9 @@ void TestAlgorithms(int argc, char *argv[]){
 		if(strcmp(argv[p], "-batch") == 0){
 			batchsize = atoi(argv[p+1]);
 		}
+		if(strcmp(argv[p], "-nsamples") == 0){
+                        nsamples = atoi(argv[p+1]);
+                }
 		if(strcmp(argv[p], "-init") == 0 && init != 2){
 			init = atoi(argv[p+1]);
 			if(init < 0 || init > 1) init = 1;
@@ -101,7 +104,7 @@ void TestAlgorithms(int argc, char *argv[]){
                 }
 		if(strcmp(argv[p], "-lr") == 0){
 			lr = atof(argv[p+1]);
-			if(lr < 0.0 || lr > 0.05) lr = 0.005;
+			//if(lr < 0.0 || lr > 0.05) lr = 0.005;
 		}
 		if(strcmp(argv[p], "-weight") == 0){
 			weight = atof(argv[p+1]);
@@ -148,14 +151,11 @@ void TestAlgorithms(int argc, char *argv[]){
 	}else if(algoOption == 1){//naive parallel algo
                 algoname = "NAIVE";
 	}else if(algoOption == 2){//cache block minibatch algo
-		algoname = "BATCHPRED";
-		if(fabs(lr - 0.01) > 0){
-			outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
-		}else{
-                	outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
-		}
+		algoname = "BATCHPREDNS";
+		//outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
+                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr);
 	}else if(algoOption == 3){//linlog mode
-		algoname = "LINLOG";
+		algoname = "ForceAtlas";
 		outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm2(iterations, numberOfThreads, batchsize);
                 //outputvec = algo.LinLogcacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize);
 	}else if(algoOption == 4){//barnes-hut approximation
