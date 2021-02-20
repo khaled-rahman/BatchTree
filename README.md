@@ -1,4 +1,4 @@
-# BatchPrEd
+# BatchPrEL
 
 ## System Requirements
 
@@ -10,19 +10,19 @@ Python3 packages: matplotlib, scipy, networkx, numpy
 ```
 Some helpful links for installation can be found at [GCC](https://gcc.gnu.org/install/), [OpenMP](https://clang-omp.github.io) and [Environment Setup](http://heather.cs.ucdavis.edu/~matloff/158/ToolsInstructions.html#compile_openmp).
 
-## Compile BatchPrEd
-To compile BatchPrEd type the following command on terminal:
+## Compile BatchPrEL
+To compile BatchPrEL type the following command on terminal:
 ```
 $ make clean
 $ make
 ```
 This will generate an executible file in bin folder.
 
-## Run BatchPrEd from command line
+## Run BatchPrEL from command line
 
-Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchPrEd, use the following command:
+Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchPrEL, use the following command:
 ```
-$ ./bin/BatchPrEd -input ./datasets/input/sf_ba6000.mtx -output ./datasets/output/ -iter 10 -batch 256 -threads 32 -algo 2
+$ ./bin/BatchPrEL -input ./datasets/input/sf_ba6000.mtx -output ./datasets/output/ -iter 10 -batch 256 -threads 32 -algo 2
 ```
 Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 256 here, `-threads` is the maximum number of threads which is 32 and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. All options are described below:
 ```
