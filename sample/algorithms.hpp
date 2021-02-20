@@ -402,9 +402,9 @@ class algorithms{
 	}
 
 	bool checkOverlap(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B){
-		VALUETYPE offsetA = A.z * maxV * 1.5 / 800.0;
-		VALUETYPE offsetB = B.z * maxV * 1.5 / 800.0;
-		VALUETYPE h = 6;
+		VALUETYPE offsetA = A.z * maxV / 1000.0;
+		VALUETYPE offsetB = B.z * maxV / 1000.0;
+		VALUETYPE h = 3;
     		if((A.x - offsetA < B.x + offsetB && B.x - offsetB < A.x + offsetA) && (A.y + h > B.y - h && A.y - h < B.y + h))
 			return true;
 		else
@@ -692,11 +692,10 @@ class algorithms{
 						INDEXTYPE colj = graph.colids[j];
 						forceDiff = nCoordinates[colj] - nCoordinates[i];
 						auto attrc = forceDiff.getMagnitude2();
-						if(sqrt(attrc) > dedgelength){
+						if(sqrt(attrc) > dedgelength)
 							f += forceDiff * sqrt(attrc);
-						}
 						if(checkOverlap(nCoordinates[i], nCoordinates[colj]) && sqrt(attrc) > 0.0){
-                                        		f -= forceDiff * (1.0 / sqrt(attrc));
+                                        		f -= forceDiff * (sqrt(attrc));
                                         	}
 					}
                                         for(INDEXTYPE j = 0; j < ns; j++){
@@ -723,12 +722,12 @@ class algorithms{
 			}
                 	STEP = STEP * 0.999;
                 	LOOP++;
-			printf("Loop Count: %d\n", LOOP);
+			//printf("Loop Count: %d\n", LOOP);
         	}
 		if(checkCrossing(LOOP)){
                 	printf("(after forceupdate) Dead End!\n");
                 }
-		//rescaleLayout(105, BATCHSIZE, STEP);
+		//rescaleLayout(100, BATCHSIZE, STEP);
 		if(checkCrossing(LOOP)){
                         printf("(after label attachment) Dead End!\n");
                 }

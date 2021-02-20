@@ -48,13 +48,14 @@ if __name__ == "__main__":
         labelarea += W * H
         print("Area of :", n, " is:", W * H)
     boundingArea = (ymax - ymin)*(xmax - xmin)
+    #boundingArea = 4 * axislimit * axislimit
     print("X length:", len(X))
     print("Xmin:", xmin, "Xmax:", xmax, "Ymin:", ymin, "Ymax:", ymax)
     print("Total Label Area:", labelarea, "Bounding Area:", boundingArea)
     print("Area Coverage:", labelarea / boundingArea)
 
     ###############Desired Edge Length###########
-    ideallength = 200.0
+    ideallength = 550.0
     totaldiff = 0
     for [a,b] in edges:
         dist = math.sqrt((X[a][0] - X[b][0]) * (X[a][0] - X[b][0]) + (X[a][1] - X[b][1]) * (X[a][1] - X[b][1]))

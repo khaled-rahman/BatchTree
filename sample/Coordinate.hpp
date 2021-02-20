@@ -128,6 +128,10 @@ class Coordinate{
 			this->x += A.x;
 			this->y += A.y;
 		}
+		void operator-=(Coordinate A){
+                        this->x -= A.x;
+                        this->y -= A.y;
+                }
 };
 template<class VALUETYPE>
 VALUETYPE get_random(VALUETYPE lowerbound, VALUETYPE upperbound){
