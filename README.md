@@ -22,9 +22,9 @@ This will generate an executible file in bin folder.
 
 Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchPrEL, use the following command:
 ```
-$./bin/BatchPrEL -input datasets/raw/Graph_1.txt.mtx -output datasets/output/ -iter 200 -lr 0.6 -batch 128 -algo 2 -nsamples 20
+$./bin/BatchPrEL -input datasets/raw/Graph_1.txt.mtx -output datasets/output/ -label datasets/raw/Graph_1.txt.labels -iter 200 -lr 0.6 -batch 128 -algo 2 -nsamples 20
 ```
-Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 256 here, `-threads` is the maximum number of threads which is 32 and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. All options are described below:
+Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 128 here, and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. All options are described below:
 ```
 -input <string>, full path of input file (required).
 -output <string>, directory where output file will be stored.
@@ -32,12 +32,12 @@ Here, `-input` is the full path of input file, `-output` is the directory where 
 -init <int>, any of 0 or 1, 1 - random initialization, 0 - greedy initialization.
 -iter <int>, number of iteration.
 -threads <int>, number of threads, default value is maximum available threads in the machine.
--algo <int>, an integer among 0, 1, 2, 3, 4, 5 and 6.
+-algo <int>, an integer among 2 and 3.
         2 - for parallel layout generation using cache blocking minibatch update.
         3 - for parallel layout generation using linlog mode, (0,-1)-energy model.
 -h, show help message.
 
-default: -batch 256 -iter 600 -threads MAX -algo 2 -init 0
+default: -batch 128 -iter 600 -threads MAX -algo 2 -init 0
 ```
 
 ### Contact 
