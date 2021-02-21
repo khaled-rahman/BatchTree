@@ -402,9 +402,9 @@ class algorithms{
 	}
 
 	bool checkOverlap(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B){
-		VALUETYPE offsetA = A.z * maxV / 1000.0;
-		VALUETYPE offsetB = B.z * maxV / 1000.0;
-		VALUETYPE h = 3;
+		VALUETYPE offsetA = A.z * 0.45;//A.z * 1.15;
+		VALUETYPE offsetB = B.z * 0.45;///2.0;//B.z * 1.15;
+		VALUETYPE h = 1.15;
     		if((A.x - offsetA < B.x + offsetB && B.x - offsetB < A.x + offsetA) && (A.y + h > B.y - h && A.y - h < B.y + h))
 			return true;
 		else
@@ -479,9 +479,10 @@ class algorithms{
 		}
 		return flag;
 	}
-	void rescaleLayout(INDEXTYPE maxloop = 25, INDEXTYPE BATCHSIZE=128, VALUETYPE STEP=0.01){
+	void rescaleLayout(INDEXTYPE maxloop = 25, INDEXTYPE BATCHSIZE=128, VALUETYPE STEP=0.6){
 		bool flag = true;
-		int loop = maxloop;
+		int loop = 0;
+		VALUETYPE dedgelength = 20.0;
 		printf("Running rescaling function...\n");
 		while(flag){
 			flag = false;
@@ -495,12 +496,20 @@ class algorithms{
                                         Coordinate<VALUETYPE> f = Coordinate <VALUETYPE>(0.0, 0.0);
 					for(INDEXTYPE j = 0; j < graph.rows; j++){
 						if(i == j) continue;
+						/*for(INDEXTYPE j = graph.rowptr[i]; j < graph.rowptr[i+1]; j++){
+                                                	INDEXTYPE colj = graph.colids[j];
+                                                	auto forceDiff = nCoordinates[colj] - nCoordinates[i];
+                                                	auto attrc = forceDiff.getMagnitude2();
+                                                	if(sqrt(attrc) > dedgelength)
+                                                        	f += forceDiff * sqrt(attrc);
+						}*/
 						if(checkOverlap(nCoordinates[i], nCoordinates[j])){
 							VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
 							if(dist > 0.0)
 							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / (dist));	
 							flag = true;
 						}
+						
 					}
 					prevCoordinates[i] += f;
 				}
@@ -510,16 +519,18 @@ class algorithms{
                                         auto p = Coordinate <VALUETYPE>(0.0, 0.0);
                                         p.x = nCoordinates[i].x;
                                         p.y = nCoordinates[i].y;
-                                        nCoordinates[i] += prevCoordinates[i].getUnitVector() * STEP;
+					if(prevCoordinates[i].getMagnitude2() > 0.0)
+					nCoordinates[i] = nCoordinates[i] + prevCoordinates[i].getUnitVector() * STEP;
                                         if(hasEdgeCrossing(loop, i, nCoordinates[i])){
                                                 nCoordinates[i] = p;
                                         }
 					maxV = max(maxV, fabs(nCoordinates[i].x));
                                         maxV = max(maxV, fabs(nCoordinates[i].y));
-                                }
+                                	prevCoordinates[i] = Coordinate <VALUETYPE>(0.0, 0.0);
+				}
 			}
-			if(loop < 0) break;
-			loop--;
+			if(loop > maxloop) break;
+			loop++;
 		}
 		printf("Final Loop: %d\n", loop);
 	}
@@ -640,7 +651,7 @@ class algorithms{
                 return result;
 	}
 
-	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, int flag = 0){
+	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo){
         	INDEXTYPE LOOP = 0, DIM = 2;
         	Coordinate<VALUETYPE>  *samples;
 		samples = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[ns])));
@@ -663,7 +674,7 @@ class algorithms{
                 printf("Number of threads = %d\n", omp_get_num_threads());
 		initDFS(root);
                 VALUETYPE angle = getAngle(Coordinate <VALUETYPE>(-10.0, -10.0));
-                printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
+                //printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
                 printf("After initialization...\n");
                 if(!checkCrossing(-1))printf("No Crossing After initialization...\n");
 
@@ -694,9 +705,6 @@ class algorithms{
 						auto attrc = forceDiff.getMagnitude2();
 						if(sqrt(attrc) > dedgelength)
 							f += forceDiff * sqrt(attrc);
-						if(checkOverlap(nCoordinates[i], nCoordinates[colj]) && sqrt(attrc) > 0.0){
-                                        		f -= forceDiff * (sqrt(attrc));
-                                        	}
 					}
                                         for(INDEXTYPE j = 0; j < ns; j++){
                                         	forceDiff = samples[j] - nCoordinates[i];
@@ -717,6 +725,8 @@ class algorithms{
 					}else{
                                         	ENERGY += prevCoordinates[indices[i]].getMagnitude2();
                                 	}
+					maxV = max(maxV, fabs(nCoordinates[i].x));
+                                        maxV = max(maxV, fabs(nCoordinates[i].y));
 					prevCoordinates[indices[i]] = Coordinate <VALUETYPE>(0.0, 0.0);
 				}
 			}
@@ -726,15 +736,17 @@ class algorithms{
         	}
 		if(checkCrossing(LOOP)){
                 	printf("(after forceupdate) Dead End!\n");
-                }
-		//rescaleLayout(100, BATCHSIZE, STEP);
+                }else{
+			printf("No edge-crossing after force-updates!\n");
+		}
+		rescaleLayout(250, BATCHSIZE, lrforlo);
 		if(checkCrossing(LOOP)){
                         printf("(after label attachment) Dead End!\n");
                 }
         	end = omp_get_wtime();
-        	cout << "BatchPrEdFA Parallel Wall time required:" << end - start << endl;
+        	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
         	result.push_back(end - start);
-        	writeToFile("BatchPrEdFA"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
+        	writeToFile("BatchPrEL"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
 		return result;
 	}
 	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithmConverged(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, int flag = 0){

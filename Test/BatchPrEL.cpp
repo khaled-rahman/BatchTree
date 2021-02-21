@@ -63,7 +63,7 @@ void myTest(){
 }
 
 void TestAlgorithms(int argc, char *argv[]){
-	VALUETYPE lr = 1.0, bhThreshold = 1.2, weight = 1.0;
+	VALUETYPE lr = 1.0, bhThreshold = 1.2, lrforlo = 0.5;
 	INDEXTYPE init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	for(int p = 0; p < argc; p++){
@@ -106,8 +106,8 @@ void TestAlgorithms(int argc, char *argv[]){
 			lr = atof(argv[p+1]);
 			//if(lr < 0.0 || lr > 0.05) lr = 0.005;
 		}
-		if(strcmp(argv[p], "-weight") == 0){
-			weight = atof(argv[p+1]);
+		if(strcmp(argv[p], "-lrforlo") == 0){
+			lrforlo = atof(argv[p+1]);
 		}
 		if(strcmp(argv[p], "-h") == 0){
 			helpmessage();
@@ -125,12 +125,12 @@ void TestAlgorithms(int argc, char *argv[]){
 		initname = "FILE";
 	}
 	printf("\n");
-        printf("@@@@@                   @      @@@@@@        @@@@@@       \n");
-        printf("@    @                  @      @    @        @           @\n");
-        printf("@  @   @@@@@@ @  @@@@@@ @      @    @ @ @@@  @           @\n");
-        printf("@@@         @ @@ @    @ @@@@@@ @@@@@@ @@   @ @@@@@@      @\n");
-        printf("@  @   @@@@@@ @  @      @    @ @      @      @      @@@@@@\n");
-        printf("@    @ @    @ @  @      @    @ @      @      @      @    @\n");
+        printf("@@@@@                   @      @@@@@@        @@@@@@ @     \n");
+        printf("@    @                  @      @    @        @      @     \n");
+        printf("@  @   @@@@@@ @  @@@@@@ @      @    @ @ @@@  @      @     \n");
+        printf("@@@         @ @@ @    @ @@@@@@ @@@@@@ @@   @ @@@@@@ @     \n");
+        printf("@  @   @@@@@@ @  @      @    @ @      @      @      @     \n");
+        printf("@    @ @    @ @  @      @    @ @      @      @      @     \n");
         printf("@@@@@  @@@@@@ @@ @@@@@@ @    @ @      @      @@@@@@ @@@@@@\n\n");
 	CSR<INDEXTYPE, VALUETYPE> A_csr;
         SetInputMatricesAsCSR(A_csr, inputfile);
@@ -143,7 +143,7 @@ void TestAlgorithms(int argc, char *argv[]){
 		}
 	}
 	vector<VALUETYPE> outputvec;
-	algorithms algo = algorithms(A_csr, inputfile, outputfile, labelfile, init, weight, lr, initfile);
+	algorithms algo = algorithms(A_csr, inputfile, outputfile, labelfile, init, 1.0, lr, initfile);
 	if(algoOption == 0){//sequential algo
 		algoname = "SEQ";
                 numberOfThreads = 1;
@@ -153,7 +153,7 @@ void TestAlgorithms(int argc, char *argv[]){
 	}else if(algoOption == 2){//cache block minibatch algo
 		algoname = "BATCHPREDNS";
 		//outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
-                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr);
+                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo);
 	}else if(algoOption == 3){//linlog mode
 		algoname = "ForceAtlas";
 		outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm2(iterations, numberOfThreads, batchsize);

@@ -40,10 +40,10 @@ if __name__ == "__main__":
 
     ################Area Coverage################
     labelarea = 0
-    H = 4 * 1.5
+    H = 2 * 1.15
     axislimit = max([abs(xmin), abs(ymin), abs(xmax), abs(ymax)])
     for n in range(len(X)):
-        offset = labels[n] * axislimit * 1.5 / 800.0;
+        offset = labels[n] * 0.45;
         W = 2 * offset
         labelarea += W * H
         print("Area of :", n, " is:", W * H)
