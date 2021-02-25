@@ -64,7 +64,7 @@ void myTest(){
 
 void TestAlgorithms(int argc, char *argv[]){
 	VALUETYPE lr = 1.0, bhThreshold = 1.2, lrforlo = 0.5;
-	INDEXTYPE init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10;
+	INDEXTYPE init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=500;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	for(int p = 0; p < argc; p++){
 		if(strcmp(argv[p], "-input") == 0){
@@ -85,6 +85,9 @@ void TestAlgorithms(int argc, char *argv[]){
 		}
 		if(strcmp(argv[p], "-iter") == 0){
 			iterations = atoi(argv[p+1]);
+		}
+		if(strcmp(argv[p], "-iter2nd") == 0){
+			iter = atoi(argv[p+1]);
 		}
 		if(strcmp(argv[p], "-threads") == 0){
 			numberOfThreads = atoi(argv[p+1]);
@@ -153,7 +156,7 @@ void TestAlgorithms(int argc, char *argv[]){
 	}else if(algoOption == 2){//cache block minibatch algo
 		algoname = "BATCHPREDNS";
 		//outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
-                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo);
+                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo, iter);
 	}else if(algoOption == 3){//linlog mode
 		algoname = "ForceAtlas";
 		outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm2(iterations, numberOfThreads, batchsize);

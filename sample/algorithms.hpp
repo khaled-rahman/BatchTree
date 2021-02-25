@@ -196,7 +196,7 @@ class algorithms{
 		maxV = maxX;
 		vertex ROOT(root, 0.0, 360.0);
                 STACK.push(ROOT);
-		double radi = 1;
+		double radi = 10;
                 visited[root] = 1;
                 nCoordinates[root] = Coordinate <VALUETYPE>(0.0, 0.0);
 		while(!STACK.empty()){
@@ -482,7 +482,7 @@ class algorithms{
 	void rescaleLayout(INDEXTYPE maxloop = 25, INDEXTYPE BATCHSIZE=128, VALUETYPE STEP=0.6){
 		bool flag = true;
 		int loop = 0;
-		VALUETYPE dedgelength = 20.0;
+		VALUETYPE dedgelength = 40.0;
 		printf("Running rescaling function...\n");
 		while(flag){
 			flag = false;
@@ -513,7 +513,7 @@ class algorithms{
 					}
 					prevCoordinates[i] += f;
 				}
-				#pragma omp parallel for
+				//#pragma omp parallel for
                                 for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
                                         if(i >= graph.rows) continue;
                                         auto p = Coordinate <VALUETYPE>(0.0, 0.0);
@@ -651,7 +651,7 @@ class algorithms{
                 return result;
 	}
 
-	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo){
+	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo, INDEXTYPE ITER){
         	INDEXTYPE LOOP = 0, DIM = 2;
         	Coordinate<VALUETYPE>  *samples;
 		samples = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[ns])));
@@ -713,7 +713,7 @@ class algorithms{
 					}
                                         prevCoordinates[indices[i]] += f;
                                 }
-				#pragma omp parallel for
+				//#pragma omp parallel for
                 		for(INDEXTYPE i = b * BATCHSIZE; i < (b + 1) * BATCHSIZE; i++){
                                         if(i >= graph.rows) continue;
 					auto p = Coordinate <VALUETYPE>(0.0, 0.0);
@@ -739,7 +739,7 @@ class algorithms{
                 }else{
 			printf("No edge-crossing after force-updates!\n");
 		}
-		rescaleLayout(250, BATCHSIZE, lrforlo);
+		rescaleLayout(ITER, BATCHSIZE, lrforlo);
 		if(checkCrossing(LOOP)){
                         printf("(after label attachment) Dead End!\n");
                 }
@@ -1160,7 +1160,7 @@ class algorithms{
                         randInit();
                 }
 		BarnesHutApproximation(approxITER, NUMOFTHREADS, BATCHSIZE, 1.2, 1);
-		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 6, 0.4, 1);	
+		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 6, 0.4, 1, 400);	
 		end = omp_get_wtime();
 		result[1] = end - start;
 		cout << "80%% - 20%% BH - CB" << endl;

@@ -11,7 +11,7 @@ SAMPLE_TARGET = $(SRC_SAMPLE:$(SAMPLE)%=$(BIN)%)
 SRC_UNITTEST = $(wildcard $(UNITTEST)/*.cpp)
 UNITTEST_TARGET = $(SRC_UNITTEST:$(UNITTEST)%=$(BIN)%)
 
-BatchPrEd: $(UNITTEST_TARGET:.cpp=)
+BatchPrEL: $(UNITTEST_TARGET:.cpp=)
 
 $(BIN)/%: $(SAMPLE)/%.cpp
 	mkdir -p $(BIN)
