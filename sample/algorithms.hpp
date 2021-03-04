@@ -196,7 +196,7 @@ class algorithms{
 		maxV = maxX;
 		vertex ROOT(root, 0.0, 360.0);
                 STACK.push(ROOT);
-		double radi = 10;
+		double radi = 50;
                 visited[root] = 1;
                 nCoordinates[root] = Coordinate <VALUETYPE>(0.0, 0.0);
 		while(!STACK.empty()){

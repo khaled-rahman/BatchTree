@@ -22,7 +22,7 @@ This will generate an executible file in bin folder.
 
 Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. To run BatchPrEL, use the following command:
 ```
-$./bin/BatchPrEL -input datasets/raw/Graph_1.txt.mtx -output datasets/output/ -label datasets/raw/Graph_1.txt.labels -iter 200 -lr 0.6 -batch 128 -algo 2 -nsamples 20
+$ ./bin/BatchPrEL -input datasets/topicgraph/Graph_8.txt.mtx -output dataset/output/ -iter 200 -lr 0.8 -batch 128 -algo 2 -nsamples 20 -label datasets/topicgraph/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 200
 ```
 Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 128 here, and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. All options are described below:
 ```
