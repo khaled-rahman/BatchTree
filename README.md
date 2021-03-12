@@ -31,10 +31,16 @@ Here, `-input` is the full path of input file, `-output` is the directory where 
 -batch <int>, size of minibatch.
 -init <int>, any of 0 or 1, 1 - random initialization, 0 - greedy initialization.
 -iter <int>, number of iteration.
+-lr <float>, learning rate for edgecrossing free drawing.
 -threads <int>, number of threads, default value is maximum available threads in the machine.
 -algo <int>, an integer among 2 and 3.
         2 - for parallel layout generation using cache blocking minibatch update.
         3 - for parallel layout generation using linlog mode, (0,-1)-energy model.
+-lrforlo <float>, learning rate for overlap removal step.
+-iter2nd <int>, iterations for overlap removal step.
+-scalingbox <float>, scaling box sizee for post-processing.
+-box <float>, box size for post-processing.
+-psamples <int>, number of samples for post-processing.
 -h, show help message.
 
 default: -batch 128 -iter 600 -threads MAX -algo 2 -init 0
