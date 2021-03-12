@@ -64,8 +64,9 @@ void myTest(){
 
 void TestAlgorithms(int argc, char *argv[]){
 	VALUETYPE lr = 1.0, bhThreshold = 1.2, lrforlo = 0.5;
-	INDEXTYPE init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=500;
+	INDEXTYPE psamples = 1000, init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=500;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
+	VALUETYPE scalingbox = 10000, pbox = 50;
 	for(int p = 0; p < argc; p++){
 		if(strcmp(argv[p], "-input") == 0){
 			inputfile = argv[p+1];
@@ -95,6 +96,15 @@ void TestAlgorithms(int argc, char *argv[]){
 		if(strcmp(argv[p], "-algo") == 0){
 			algoOption = atoi(argv[p+1]);
 		}
+		if(strcmp(argv[p], "-psamples") == 0){
+                        psamples = atoi(argv[p+1]);
+                }
+		if(strcmp(argv[p], "-box") == 0){
+                        pbox = atof(argv[p+1]);
+                }
+		if(strcmp(argv[p], "-scalingbox") == 0){
+                        scalingbox = atof(argv[p+1]);
+                }
 		if(strcmp(argv[p], "-bht") == 0){
 			bhThreshold = atof(argv[p+1]);
 		}
@@ -156,7 +166,7 @@ void TestAlgorithms(int argc, char *argv[]){
 	}else if(algoOption == 2){//cache block minibatch algo
 		algoname = "BATCHPREDNS";
 		//outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithmConverged(iterations, numberOfThreads, batchsize);
-                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo, iter);
+                outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo, iter, scalingbox, psamples, pbox);
 	}else if(algoOption == 3){//linlog mode
 		algoname = "ForceAtlas";
 		outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm2(iterations, numberOfThreads, batchsize);

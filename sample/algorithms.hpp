@@ -148,9 +148,7 @@ class algorithms{
 	}
 	INDEXTYPE findRoot(){
 		VALUETYPE degcen[graph.rows] = {0.0};
-#if NV > 1500		
 		 #pragma omp parallel for schedule(static)
-#endif
 		for(INDEXTYPE i = 0; i < graph.rows; i++){
 			INDEXTYPE dist = 0;
 			stack<INDEXTYPE> STACK;
@@ -284,7 +282,7 @@ class algorithms{
 			INDEXTYPE i;
 			while(fgets(line, 256, infile)){
 				sscanf(line, "%lf %lf %d", &x, &y, &i);
-				nCoordinates[index] = Coordinate <VALUETYPE>(x, y, i); 
+				nCoordinates[index] = Coordinate <VALUETYPE>(x, y, 0); 
 				index++;
 			}
 		}
@@ -402,8 +400,8 @@ class algorithms{
 	}
 
 	bool checkOverlap(Coordinate<VALUETYPE> A, Coordinate<VALUETYPE> B){
-		VALUETYPE offsetA = A.z * 0.45;//A.z * 1.15;
-		VALUETYPE offsetB = B.z * 0.45;///2.0;//B.z * 1.15;
+		VALUETYPE offsetA = A.z * 0.35;//A.z * 1.15;
+		VALUETYPE offsetB = B.z * 0.35;///2.0;//B.z * 1.15;
 		VALUETYPE h = 1.15;
     		if((A.x - offsetA < B.x + offsetB && B.x - offsetB < A.x + offsetA) && (A.y + h > B.y - h && A.y - h < B.y + h))
 			return true;
@@ -651,7 +649,140 @@ class algorithms{
                 return result;
 	}
 
-	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo, INDEXTYPE ITER){
+        bool doOverlap(VALUETYPE l1_x, VALUETYPE l1_y, VALUETYPE r1_x,  VALUETYPE r1_y, VALUETYPE l2_x, VALUETYPE l2_y, VALUETYPE r2_x, VALUETYPE r2_y) 
+        { 
+          // If one rectangle is on left side of other 
+          if (l1_x >= r2_x || l2_x >= r1_x) 
+            return false; 
+  
+          // If one rectangle is above other 
+          if (l1_y <= r2_y || l2_y <= r1_y) 
+            return false; 
+  
+          return true; 
+        }
+
+        void postProcessing(double scalingbox, int psamples, double box_size)
+        {
+	  //double scalingbox = 12000;
+          printf("inside postProcessing\n");
+          VALUETYPE x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
+          VALUETYPE total_area, scale, total_len = 0;
+          for(INDEXTYPE i=0;i<graph.rows;i++)
+          {
+            if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
+            if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
+            if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
+            if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
+            total_len += nCoordinates[i].z;
+          }
+          VALUETYPE cntr_x = (x_mx-x_mn)/2;
+          VALUETYPE cntr_y = (y_mx-y_mn)/2;
+          for(INDEXTYPE i=0;i<graph.rows;i++)
+          {
+            nCoordinates[i].x = nCoordinates[i].x-cntr_x;
+            nCoordinates[i].y = nCoordinates[i].y-cntr_y;
+          }
+          for(INDEXTYPE i=0;i<graph.rows;i++)
+          {
+            nCoordinates[i].x = nCoordinates[i].x*scalingbox/(x_mx-x_mn);
+            nCoordinates[i].y = nCoordinates[i].y*scalingbox/(y_mx-y_mn);
+            //nCoordinates[i].x = nCoordinates[i].x*500/(x_mx-x_mn);
+            //nCoordinates[i].y = nCoordinates[i].y*500/(y_mx-y_mn);
+          }
+          x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
+          for(INDEXTYPE i=0;i<graph.rows;i++)
+          {
+            if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
+            if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
+            if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
+            if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
+          }
+          total_area = (x_mx-x_mn)*(y_mx-y_mn);
+          //scale = 0.01*total_area/(0.6*total_len);
+          scale = sqrt(0.001*total_area/(0.6*total_len));
+          //cout << "width " << scale*.6 << " height " << scale << endl;
+          INDEXTYPE count = 0, count_solved = 0;
+          for(INDEXTYPE i=0;i<graph.rows;i++)
+          {
+            for(INDEXTYPE j=i+1;j<graph.rows;j++)
+            {
+              // check overlap
+              VALUETYPE l1_x = nCoordinates[i].x, l1_y = nCoordinates[i].y+scale, r1_x = nCoordinates[i].x+nCoordinates[i].z*scale*.6, r1_y = nCoordinates[i].y, l2_x = nCoordinates[j].x, l2_y = nCoordinates[j].y+scale, r2_x = nCoordinates[j].x+nCoordinates[j].z*scale*.6, r2_y = nCoordinates[j].y;
+              if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y))
+              {
+                INDEXTYPE overlapped_labels [] = {i, j};
+                bool overlap_crossing_free = false;
+                for(INDEXTYPE k=0;k<2;k++)
+                {
+                  INDEXTYPE ind = overlapped_labels[k];
+                  // continue this for 100 times
+                  //for(INDEXTYPE l=0;l<1200;l++)
+                  //for(INDEXTYPE l=0;l<600;l++)
+                  for(INDEXTYPE l=0;l<psamples;l++)
+                  //The following one is the default
+                  //for(INDEXTYPE l=0;l<100;l++)
+                  //for(INDEXTYPE l=0;l<1;l++)
+                  {
+                    // consider a small square of 300x300
+                    // random sample a number from -150 to 150, once for x coord, once for y coord
+                    //VALUETYPE box_size = 1201;
+                    //VALUETYPE box_size = 301;
+                    // The following one is the default one
+                    //VALUETYPE box_size = 600;
+                    //VALUETYPE box_size = 100;
+                    //VALUETYPE box_size = 50;
+                    //VALUETYPE box_size = 10;
+                    VALUETYPE shift_x = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
+                    VALUETYPE shift_y = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
+                    VALUETYPE prev_x = nCoordinates[ind].x;
+                    VALUETYPE prev_y = nCoordinates[ind].y;
+                    nCoordinates[ind].x += shift_x;
+                    nCoordinates[ind].y += shift_y;
+                    // check whether it removes overlap without new crossing
+                    bool overlap_free = true;
+                    for(INDEXTYPE m=0;m<graph.rows;m++)
+                    {
+                      if(m==ind)continue;
+                      l1_x = nCoordinates[ind].x, l1_y = nCoordinates[ind].y+scale, r1_x = nCoordinates[ind].x+nCoordinates[ind].z*scale*.6, r1_y = nCoordinates[ind].y, l2_x = nCoordinates[m].x, l2_y = nCoordinates[m].y+scale, r2_x = nCoordinates[m].x+nCoordinates[m].z*scale*.6, r2_y = nCoordinates[m].y;
+                      if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y))
+                      {
+                        overlap_free = false;
+                        break;
+                      }
+                    }
+                    if(overlap_free)
+                    {
+                      bool introducesCrossing = hasEdgeCrossing(0, ind, nCoordinates[ind]);
+                      if(overlap_free && (!introducesCrossing))
+                      //if(overlap_free)
+                      {
+                        overlap_crossing_free = true;
+                        //cout << "Found an overlap and crossing free coordinate for [" << overlapped_labels[0] << ", " << overlapped_labels[1] << ']' << endl;
+                        count_solved += 1;
+                      }
+                    }
+                    if(overlap_crossing_free)break;
+                    else
+                    {
+                      nCoordinates[ind].x = prev_x;
+                      nCoordinates[ind].y = prev_y;
+                    }
+                  }
+                  if(overlap_crossing_free)break;
+                  else
+                  {
+                    //cout << "Could not found an overlap and crossing free coordinate for [" << overlapped_labels[0] << ", " << overlapped_labels[1] << ']' << endl;
+                  }
+                }
+                count += 1;
+              }
+            }
+          }
+          cout << "Post-processing- overlaps: " << count << " removed: " << count_solved << endl;
+        }
+
+	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo, INDEXTYPE ITER, VALUETYPE scalingbox, INDEXTYPE psamples, VALUETYPE pbox){
         	INDEXTYPE LOOP = 0, DIM = 2;
         	Coordinate<VALUETYPE>  *samples;
 		samples = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[ns])));
@@ -660,7 +791,6 @@ class algorithms{
 		VALUETYPE start, end, ENERGY, ENERGY0;
                 vector<INDEXTYPE> indices;
 		for(INDEXTYPE i = 0; i < graph.rows; i++) indices.push_back(i);
-		if(labelfile.size() > 0) readlabels();
                 printf("From Option 2: Calling findRoot...\n");
                 INDEXTYPE root = findRoot();
                 printf("Root = %d\n", root);
@@ -672,7 +802,14 @@ class algorithms{
                 omp_set_num_threads(NUMOFTHREADS);
                 start = omp_get_wtime();
                 printf("Number of threads = %d\n", omp_get_num_threads());
-		initDFS(root);
+		if(init == 1){
+			fileInitialization();
+			ITERATIONS = 0;
+			ITER = 0;			
+                }else{
+			initDFS(root);
+                }
+		if(labelfile.size() > 0) readlabels();
                 VALUETYPE angle = getAngle(Coordinate <VALUETYPE>(-10.0, -10.0));
                 //printf("P1(0, %lf), P2(10.0, 10.0) = Angle: %lf\n", maxY, angle * 180.0 / PI);
                 printf("After initialization...\n");
@@ -742,6 +879,10 @@ class algorithms{
 		rescaleLayout(ITER, BATCHSIZE, lrforlo);
 		if(checkCrossing(LOOP)){
                         printf("(after label attachment) Dead End!\n");
+                }
+                postProcessing(scalingbox, psamples, pbox);
+		if(checkCrossing(LOOP)){
+                        printf("(after post-processing) Dead End!\n");
                 }
         	end = omp_get_wtime();
         	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
@@ -1160,7 +1301,7 @@ class algorithms{
                         randInit();
                 }
 		BarnesHutApproximation(approxITER, NUMOFTHREADS, BATCHSIZE, 1.2, 1);
-		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 6, 0.4, 1, 400);	
+		result = cacheBlockingminiBatchForceDirectedAlgorithm(ITERATIONS-approxITER, NUMOFTHREADS, BATCHSIZE, 6, 0.4, 1, 400, 10000, 1000, 50);	
 		end = omp_get_wtime();
 		result[1] = end - start;
 		cout << "80%% - 20%% BH - CB" << endl;
@@ -1207,7 +1348,7 @@ class algorithms{
 		output.open(filename);
 		cout << "Creating output file in following directory:" << filename << endl;
 		for(INDEXTYPE i = 0; i < graph.rows; i++){
-			output << nCoordinates[i].getX() <<"\t"<< nCoordinates[i].getY() << "\t" << i+1 << endl;
+			output << std::fixed << nCoordinates[i].getX() <<"\t"<< nCoordinates[i].getY() << "\t" << i+1 << endl;
 		}
 		output.close();
 	}
