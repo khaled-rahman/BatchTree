@@ -223,6 +223,7 @@ class algorithms{
                 }
 		scalefactor = 1.0;//2.0 * MAXMIN / max(maxX - minX, maxY - minY);
 		//#pragma omp parallel for schedule(static)
+		/*
 		for(int i = 0; i < graph.rows; i++){
 			nCoordinates[i] = nCoordinates[i] * scalefactor;
 			maxX = max(maxX, nCoordinates[i].x);
@@ -234,6 +235,7 @@ class algorithms{
 			maxV = max(maxV, fabs(minX));
 			maxV = max(maxV, fabs(minY));
 		}
+		*/
         }
 	INDEXTYPE randIndex(INDEXTYPE max_num, INDEXTYPE min_num){
         	const INDEXTYPE newIndex = (rand() % (max_num - min_num)) + min_num;
@@ -716,23 +718,8 @@ class algorithms{
                 for(INDEXTYPE k=0;k<2;k++)
                 {
                   INDEXTYPE ind = overlapped_labels[k];
-                  // continue this for 100 times
-                  //for(INDEXTYPE l=0;l<1200;l++)
-                  //for(INDEXTYPE l=0;l<600;l++)
                   for(INDEXTYPE l=0;l<psamples;l++)
-                  //The following one is the default
-                  //for(INDEXTYPE l=0;l<100;l++)
-                  //for(INDEXTYPE l=0;l<1;l++)
                   {
-                    // consider a small square of 300x300
-                    // random sample a number from -150 to 150, once for x coord, once for y coord
-                    //VALUETYPE box_size = 1201;
-                    //VALUETYPE box_size = 301;
-                    // The following one is the default one
-                    //VALUETYPE box_size = 600;
-                    //VALUETYPE box_size = 100;
-                    //VALUETYPE box_size = 50;
-                    //VALUETYPE box_size = 10;
                     VALUETYPE shift_x = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
                     VALUETYPE shift_y = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
                     VALUETYPE prev_x = nCoordinates[ind].x;
@@ -755,10 +742,8 @@ class algorithms{
                     {
                       bool introducesCrossing = hasEdgeCrossing(0, ind, nCoordinates[ind]);
                       if(overlap_free && (!introducesCrossing))
-                      //if(overlap_free)
                       {
                         overlap_crossing_free = true;
-                        //cout << "Found an overlap and crossing free coordinate for [" << overlapped_labels[0] << ", " << overlapped_labels[1] << ']' << endl;
                         count_solved += 1;
                       }
                     }
@@ -840,8 +825,7 @@ class algorithms{
 						INDEXTYPE colj = graph.colids[j];
 						forceDiff = nCoordinates[colj] - nCoordinates[i];
 						auto attrc = forceDiff.getMagnitude2();
-						if(sqrt(attrc) > dedgelength)
-							f += forceDiff * sqrt(attrc);
+						f += forceDiff * (graph.values[colj]/sqrt(attrc));
 					}
                                         for(INDEXTYPE j = 0; j < ns; j++){
                                         	forceDiff = samples[j] - nCoordinates[i];
@@ -876,14 +860,20 @@ class algorithms{
                 }else{
 			printf("No edge-crossing after force-updates!\n");
 		}
-		rescaleLayout(ITER, BATCHSIZE, lrforlo);
-		if(checkCrossing(LOOP)){
-                        printf("(after label attachment) Dead End!\n");
-                }
-                postProcessing(scalingbox, psamples, pbox);
-		if(checkCrossing(LOOP)){
-                        printf("(after post-processing) Dead End!\n");
-                }
+
+		if(lrforlo > 0){
+			rescaleLayout(ITER, BATCHSIZE, lrforlo);
+			if(checkCrossing(LOOP)){
+                        	printf("(after label attachment) Dead End!\n");
+                	}
+		}
+
+		if(ITERATIONS == 0){
+                	postProcessing(scalingbox, psamples, pbox);
+			if(checkCrossing(LOOP)){
+                        	printf("(after post-processing) Dead End!\n");
+                	}
+		}
         	end = omp_get_wtime();
         	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
         	result.push_back(end - start);
