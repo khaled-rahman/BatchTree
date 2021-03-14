@@ -209,6 +209,7 @@ class algorithms{
                                 VALUETYPE degree = node.left + deg / 2.0;
                                 for(INDEXTYPE n = graph.rowptr[node.v]; n < graph.rowptr[node.v+1]; n++){
                                         if(visited[graph.colids[n]] == 0){
+						//radi = graph.values[n];
 						auto ldeg = degree;
 						auto rdeg = degree + deg * childcount[graph.colids[n]];
 						//printf("Node ID:%d, degree = %lf, ldeg = %lf, rdeg = %lf\n", graph.colids[n], degree, ldeg, rdeg);
@@ -728,7 +729,7 @@ class algorithms{
 		}
 	  }
           total_area = (x_mx-x_mn)*(y_mx-y_mn);
-          scale = sqrt(0.01*total_area/(0.6*total_len));
+          scale = sqrt(0.05*total_area/(0.6*total_len));
           INDEXTYPE count = 0, count_solved = 0;
           for(INDEXTYPE i=0;i<graph.rows;i++)
           {
@@ -850,7 +851,9 @@ class algorithms{
 						INDEXTYPE colj = graph.colids[j];
 						forceDiff = nCoordinates[colj] - nCoordinates[i];
 						auto attrc = forceDiff.getMagnitude2();
-						f += forceDiff * (graph.values[colj]/sqrt(attrc));
+						f += forceDiff * (graph.values[j] / sqrt(attrc));
+						//if(sqrt(attrc) > graph.values[j])
+						//	f += forceDiff;
 						//printf("%d -- %d, %f\n", i, colj, graph.values[colj]);
 					}
                                         for(INDEXTYPE j = 0; j < ns; j++){
