@@ -670,40 +670,65 @@ class algorithms{
           printf("inside postProcessing\n");
           VALUETYPE x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
           VALUETYPE total_area, scale, total_len = 0;
-          for(INDEXTYPE i=0;i<graph.rows;i++)
-          {
-            if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
-            if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
-            if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
-            if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
-            total_len += nCoordinates[i].z;
-          }
-          VALUETYPE cntr_x = (x_mx-x_mn)/2;
-          VALUETYPE cntr_y = (y_mx-y_mn)/2;
-          for(INDEXTYPE i=0;i<graph.rows;i++)
-          {
-            nCoordinates[i].x = nCoordinates[i].x-cntr_x;
-            nCoordinates[i].y = nCoordinates[i].y-cntr_y;
-          }
-          for(INDEXTYPE i=0;i<graph.rows;i++)
-          {
-            nCoordinates[i].x = nCoordinates[i].x*scalingbox/(x_mx-x_mn);
-            nCoordinates[i].y = nCoordinates[i].y*scalingbox/(y_mx-y_mn);
-            //nCoordinates[i].x = nCoordinates[i].x*500/(x_mx-x_mn);
-            //nCoordinates[i].y = nCoordinates[i].y*500/(y_mx-y_mn);
-          }
-          x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
-          for(INDEXTYPE i=0;i<graph.rows;i++)
-          {
-            if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
-            if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
-            if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
-            if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
-          }
+         if(graph.rows < 4500){ 
+	 	for(INDEXTYPE i=0;i<graph.rows;i++)
+         	{
+            		if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
+            		if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
+            		if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
+            		if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
+            		total_len += nCoordinates[i].z;
+          	}
+          	VALUETYPE cntr_x = (x_mx-x_mn)/2;
+          	VALUETYPE cntr_y = (y_mx-y_mn)/2;
+          	for(INDEXTYPE i=0;i<graph.rows;i++)
+          	{
+            		nCoordinates[i].x = nCoordinates[i].x-cntr_x;
+            		nCoordinates[i].y = nCoordinates[i].y-cntr_y;
+          	}	
+          	for(INDEXTYPE i=0;i<graph.rows;i++)
+          	{
+            		nCoordinates[i].x = nCoordinates[i].x*scalingbox/(x_mx-x_mn);
+            		nCoordinates[i].y = nCoordinates[i].y*scalingbox/(y_mx-y_mn);
+          	}
+          	x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
+          	for(INDEXTYPE i=0;i<graph.rows;i++)
+          	{
+            		if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
+            		if(x_mn>nCoordinates[i].x)x_mn = nCoordinates[i].x;
+            		if(y_mx<nCoordinates[i].y)y_mx = nCoordinates[i].y;
+            		if(y_mn>nCoordinates[i].y)y_mn = nCoordinates[i].y;
+          	}
+	}else{
+		
+		#pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
+		for(INDEXTYPE i=0;i<graph.rows;i++)
+                {
+			x_mx = max(x_mx, nCoordinates[i].x);
+			x_mn = min(x_mn, nCoordinates[i].x);
+			y_mx = max(y_mx, nCoordinates[i].y);
+			y_mn = min(y_mn, nCoordinates[i].y);
+                        total_len += nCoordinates[i].z;
+                }
+                VALUETYPE cntr_x = (x_mx-x_mn)/2;
+                VALUETYPE cntr_y = (y_mx-y_mn)/2;
+		
+		x_mx = x_mn = (nCoordinates[0].x-cntr_x)*scalingbox/(x_mx-x_mn);
+		y_mx = y_mn = (nCoordinates[0].y-cntr_y)*scalingbox/(y_mx-y_mn);
+		
+		#pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
+                for(INDEXTYPE i=0;i<graph.rows;i++)
+                {
+                        nCoordinates[i].x = (nCoordinates[i].x-cntr_x)*scalingbox/(x_mx-x_mn);
+                        nCoordinates[i].y = (nCoordinates[i].y-cntr_y)*scalingbox/(y_mx-y_mn);       
+                	x_mx = max(x_mx, nCoordinates[i].x);
+                        x_mn = min(x_mn, nCoordinates[i].x);
+                        y_mx = max(y_mx, nCoordinates[i].y);
+                        y_mn = min(y_mn, nCoordinates[i].y);
+		}
+	  }
           total_area = (x_mx-x_mn)*(y_mx-y_mn);
-          //scale = 0.01*total_area/(0.6*total_len);
-          scale = sqrt(0.001*total_area/(0.6*total_len));
-          //cout << "width " << scale*.6 << " height " << scale << endl;
+          scale = sqrt(0.01*total_area/(0.6*total_len));
           INDEXTYPE count = 0, count_solved = 0;
           for(INDEXTYPE i=0;i<graph.rows;i++)
           {
@@ -826,6 +851,7 @@ class algorithms{
 						forceDiff = nCoordinates[colj] - nCoordinates[i];
 						auto attrc = forceDiff.getMagnitude2();
 						f += forceDiff * (graph.values[colj]/sqrt(attrc));
+						//printf("%d -- %d, %f\n", i, colj, graph.values[colj]);
 					}
                                         for(INDEXTYPE j = 0; j < ns; j++){
                                         	forceDiff = samples[j] - nCoordinates[i];
@@ -868,12 +894,10 @@ class algorithms{
                 	}
 		}
 
-		if(ITERATIONS == 0){
-                	postProcessing(scalingbox, psamples, pbox);
-			if(checkCrossing(LOOP)){
-                        	printf("(after post-processing) Dead End!\n");
-                	}
-		}
+                postProcessing(scalingbox, psamples, pbox);
+		if(checkCrossing(LOOP)){
+                	printf("(after post-processing) Dead End!\n");
+                }
         	end = omp_get_wtime();
         	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
         	result.push_back(end - start);
@@ -1341,6 +1365,7 @@ class algorithms{
 			output << std::fixed << nCoordinates[i].getX() <<"\t"<< nCoordinates[i].getY() << "\t" << i+1 << endl;
 		}
 		output.close();
+		cout << "Done!" << endl;
 	}
 };
 #endif
