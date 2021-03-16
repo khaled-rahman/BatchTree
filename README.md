@@ -42,7 +42,7 @@ All options are described below:
 -input <string>, full path of input file (required).
 -output <string>, directory where output file will be stored.
 -batch <int>, size of minibatch.
--init <int>, any of 0 or 1, 1 - random initialization, 0 - greedy initialization.
+-initf <string>, a layout file to initializee the coordinates of all vertices.
 -iter <int>, number of iteration.
 -lr <float>, learning rate for edgecrossing free drawing.
 -threads <int>, number of threads, default value is maximum available threads in the machine.
