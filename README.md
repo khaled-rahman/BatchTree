@@ -42,6 +42,7 @@ All options are described below:
 -input <string>, full path of input file (required).
 -output <string>, directory where output file will be stored.
 -batch <int>, size of minibatch.
+-nsamples <int>, number of samples to compute repulsive force.
 -initf <string>, a layout file to initializee the coordinates of all vertices.
 -iter <int>, number of iteration.
 -lr <float>, learning rate for edgecrossing free drawing.
@@ -53,7 +54,7 @@ All options are described below:
 -psamples <int>, number of samples for post-processing.
 -h, show help message.
 
-default: -batch 128 -iter 600 -threads MAX -algo 2 -init 0
+default: -batch 128 -iter 200 -threads MAX -nsamples 10
 ```
 
 ### Contact 

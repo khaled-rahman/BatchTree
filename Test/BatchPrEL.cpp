@@ -41,7 +41,7 @@ void myTest(){
 
 void TestAlgorithms(int argc, char *argv[]){
 	VALUETYPE lr = 1.0, bhThreshold = 1.2, lrforlo = 0.5;
-	INDEXTYPE psamples = 1000, init = 0, batchsize = 128, iterations = 600, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=500;
+	INDEXTYPE psamples = 1000, init = 0, batchsize = 128, iterations = 200, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=200;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	VALUETYPE scalingbox = 10000, pbox = 50;
 	for(int p = 0; p < argc; p++){
