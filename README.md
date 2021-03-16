@@ -26,7 +26,7 @@ Input file must be in matrix market format ([check here for details about .mtx f
 #### Layout generation ####
 To generate crossing-free layout using BatchPrEL, use the following command:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 200 -lr 0.8 -batch 128 -algo 2 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
+$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 120 -lr 0.8 -batch 256 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
 ```
 Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 128 here, and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. 
 
@@ -46,9 +46,6 @@ All options are described below:
 -iter <int>, number of iteration.
 -lr <float>, learning rate for edgecrossing free drawing.
 -threads <int>, number of threads, default value is maximum available threads in the machine.
--algo <int>, an integer among 2 and 3.
-        2 - for parallel layout generation using cache blocking minibatch update.
-        3 - for parallel layout generation using linlog mode, (0,-1)-energy model.
 -lrforlo <float>, learning rate for overlap removal step.
 -iter2nd <int>, iterations for overlap removal step.
 -scalingbox <float>, scaling box sizee for post-processing.
