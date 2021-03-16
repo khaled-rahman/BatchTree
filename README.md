@@ -33,7 +33,7 @@ Here, `-input` is the full path of input file, `-output` is the directory where 
 #### Post-processing step ####
 After running the first step, to remove existing label overlaps and increase area utilization, we can use this post-processing step. In this step, we will initialize the layout generated in previous step as follows:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -initf datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT200.txt
+$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -expc 0.01 -initf datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT200.txt
 ```
 We can run this post-processing step multiple times to get the desired output.
 
@@ -52,6 +52,7 @@ All options are described below:
 -scalingbox <float>, scaling box sizee for post-processing.
 -box <float>, box size for post-processing.
 -psamples <int>, number of samples for post-processing.
+-expc <float>, expected compactness value of post-processing.
 -h, show help message.
 
 default: -batch 128 -iter 200 -threads MAX -nsamples 10

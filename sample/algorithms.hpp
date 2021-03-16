@@ -471,9 +471,8 @@ class algorithms{
           return true; 
         }
 
-        void postProcessing(double scalingbox, int psamples, double box_size)
+        void postProcessing(double scalingbox, int psamples, double box_size, double expc)
         {
-	  //double scalingbox = 12000;
           printf("inside postProcessing\n");
           VALUETYPE x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
           VALUETYPE total_area, scale, total_len = 0;
@@ -535,7 +534,7 @@ class algorithms{
 		}
 	  }
           total_area = (x_mx-x_mn)*(y_mx-y_mn);
-          scale = sqrt(0.03*total_area/(0.6*total_len));
+          scale = sqrt(expc * total_area / (0.6 * total_len));
           INDEXTYPE count = 0, count_solved = 0;
           for(INDEXTYPE i=0;i<graph.rows;i++)
           {
@@ -599,7 +598,7 @@ class algorithms{
           cout << "Post-processing- overlaps: " << count << " removed: " << count_solved << endl;
         }
 
-	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo, INDEXTYPE ITER, VALUETYPE scalingbox, INDEXTYPE psamples, VALUETYPE pbox){
+	vector<VALUETYPE> cacheBlockingminiBatchForceDirectedAlgorithm(INDEXTYPE ITERATIONS, INDEXTYPE NUMOFTHREADS, INDEXTYPE BATCHSIZE, INDEXTYPE ns, VALUETYPE lr, VALUETYPE lrforlo, INDEXTYPE ITER, VALUETYPE scalingbox, INDEXTYPE psamples, VALUETYPE pbox, VALUETYPE expc){
         	INDEXTYPE LOOP = 0, DIM = 2;
         	Coordinate<VALUETYPE>  *samples;
 		samples = static_cast<Coordinate<VALUETYPE> *> (::operator new (sizeof(Coordinate<VALUETYPE>[ns])));
@@ -703,14 +702,15 @@ class algorithms{
                 	}
 		}
 		if(ITERATIONS == 0){
-                	postProcessing(scalingbox, psamples, pbox);
+                	postProcessing(scalingbox, psamples, pbox, expc);
 			if(checkCrossing(LOOP)){
                 		printf("(after post-processing) Dead End!\n");
                 	}
 		}
         	end = omp_get_wtime();
         	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
-        	result.push_back(end - start);
+        	cout << "Suggested scaling-box in post-processing:" << maxV << endl;
+		result.push_back(end - start);
         	writeToFile("BatchPrEL"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
 		return result;
 	}
