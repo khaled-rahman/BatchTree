@@ -377,9 +377,9 @@ class algorithms{
                 }
                 return flag;
         }
-	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N){
+	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N, INDEXTYPE nt=32){
 		bool flag = false;
-		#pragma omp parallel
+		#pragma omp parallel num_threads(nt)
 		{
 			INDEXTYPE tid = omp_get_thread_num();
                         INDEXTYPE nthreads = omp_get_num_threads();
@@ -393,7 +393,6 @@ class algorithms{
 						if(n == i || graph.colids[f] == graph.colids[j]) continue;
 						if(graph.colids[f] == i || n == graph.colids[j]) continue;
 						if(checkIntersection(N, nCoordinates[graph.colids[f]], nCoordinates[i], nCoordinates[graph.colids[j]])){
-							//printf("Test:(%d %d), (%d, %d)\n", n, graph.colids[f], i, graph.colids[j]);
 							flag = true;
 						}
 					}
@@ -471,6 +470,27 @@ class algorithms{
           return true; 
         }
 
+	 bool hasLabelOverlapping(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N, VALUETYPE scaling){
+                bool flag = false;
+                #pragma omp parallel num_threads(32)
+                {       
+                        INDEXTYPE tid = omp_get_thread_num();
+                        INDEXTYPE nthreads = omp_get_num_threads();
+                        INDEXTYPE perthreadwork = graph.rows / nthreads;
+                        INDEXTYPE starti = tid * perthreadwork;
+                        INDEXTYPE endi = (tid + 1) * perthreadwork;
+                        if(tid == nthreads - 1) endi = max(endi, graph.rows);
+                        for(INDEXTYPE m= starti; m<endi && flag == false; m++){
+                                if(n == m) continue;
+                                VALUETYPE l1_x = N.x, l1_y = N.y+scaling, r1_x = N.x+N.z*scaling*0.6, r1_y = N.y, l2_x = nCoordinates[m].x, l2_y = nCoordinates[m].y+scaling, r2_x = nCoordinates[m].x+nCoordinates[m].z*scaling*0.6, r2_y = nCoordinates[m].y;                
+                                if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y)){
+                                        flag = true;
+                                }
+                        }
+                }
+                return flag;
+        }
+
 	void parallelPostProcessing(double scalingbox, int psamples, double box_size, double expc)
 	{
 		printf("inside parallel postProcessing\n");
@@ -505,9 +525,39 @@ class algorithms{
 		total_area = (x_mx-x_mn)*(y_mx-y_mn);
           	scale = sqrt(expc * total_area / (0.6 * total_len));
           	INDEXTYPE count = 0, count_solved = 0;
-
-		
-		
+		printf("Here..\n");
+                //#pragma omp parallel for schedule(static) //reduction(+:count,count_solved)
+                for(INDEXTYPE i = 0; i < graph.rows; i++){
+			printf("%d\n", i);
+			for(INDEXTYPE j=i+1; j<graph.rows; j++){
+				if(i == j) continue;
+				VALUETYPE l1_x = nCoordinates[i].x, l1_y = nCoordinates[i].y+scale, r1_x = nCoordinates[i].x+nCoordinates[i].z*scale*.6, r1_y = nCoordinates[i].y, l2_x = nCoordinates[j].x, l2_y = nCoordinates[j].y+scale, r2_x = nCoordinates[j].x+nCoordinates[j].z*scale*.6, r2_y = nCoordinates[j].y;
+				if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y)){
+					bool overlap_crossing_free = false;
+					for(INDEXTYPE l=0; l<psamples && !overlap_crossing_free; l++){
+                    				VALUETYPE shift_x = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
+                    				VALUETYPE shift_y = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);					
+						prevCoordinates[i] = nCoordinates[i];
+						prevCoordinates[i].x += shift_x;
+                    				prevCoordinates[i].y += shift_y;
+						bool overlap_free, introducesCrossing;
+						printf("i = %d, j = %d, l = %d\n", i, j, l);	
+						//#pragma omp critical
+						{
+							overlap_free = hasLabelOverlapping(0, i, prevCoordinates[i], scale);
+                      					introducesCrossing = hasEdgeCrossing(0, i, prevCoordinates[i], 1);
+                      				}
+						if(!overlap_free && !introducesCrossing){
+                        				overlap_crossing_free = true;
+                        				//count_solved += 1;
+                        				nCoordinates[i] = prevCoordinates[i];
+                    				}	
+					}
+					//count += 1;
+				}
+			}
+		}
+		printf("Found overlaps: %d, Total Solved: %d\n", count, count_solved);
 	}
 
         void postProcessing(double scalingbox, int psamples, double box_size, double expc)
@@ -743,6 +793,7 @@ class algorithms{
 		}
 		if(ITERATIONS == 0){
                 	postProcessing(scalingbox, psamples, pbox, expc);
+			//parallelPostProcessing(scalingbox, psamples, pbox, expc);
 			if(checkCrossing(LOOP)){
                 		printf("(after post-processing) Dead End!\n");
                 	}
