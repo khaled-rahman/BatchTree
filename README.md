@@ -26,14 +26,14 @@ Input file must be in matrix market format ([check here for details about .mtx f
 #### Layout generation ####
 To generate crossing-free layout using BatchPrEL, use the following command:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 120 -lr 0.8 -batch 256 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
+$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 120 -lr 0.8 -batch 128 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
 ```
 Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 128 here, and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. 
 
 #### Post-processing step ####
 After running the first step, to remove existing label overlaps and increase area utilization, we can use this post-processing step. In this step, we will initialize the layout generated in previous step as follows:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -expc 0.01 -initf datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT200.txt
+$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -expc 0.01 -initf datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT120.txt
 ```
 We can run this post-processing step multiple times to get the desired output.
 
@@ -56,6 +56,12 @@ All options are described below:
 -h, show help message.
 
 default: -batch 128 -iter 200 -threads MAX -nsamples 10
+```
+
+## Compute edge-length preservation measure
+To compute the edge-length preservation measure, please run the following command:
+```
+python calcMeasuresWeighted.py datasets/raw/Graph_8.txt.weighted.mtx datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT0.txt datasets/raw/Graph_8.txt.labels
 ```
 
 ### Contact 

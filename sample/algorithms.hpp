@@ -377,9 +377,9 @@ class algorithms{
                 }
                 return flag;
         }
-	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N, INDEXTYPE nt=32){
+	bool hasEdgeCrossing(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N){
 		bool flag = false;
-		#pragma omp parallel num_threads(nt)
+		#pragma omp parallel
 		{
 			INDEXTYPE tid = omp_get_thread_num();
                         INDEXTYPE nthreads = omp_get_num_threads();
@@ -472,20 +472,11 @@ class algorithms{
 
 	 bool hasLabelOverlapping(INDEXTYPE LOOP, INDEXTYPE n, Coordinate<VALUETYPE> N, VALUETYPE scaling){
                 bool flag = false;
-                #pragma omp parallel num_threads(32)
-                {       
-                        INDEXTYPE tid = omp_get_thread_num();
-                        INDEXTYPE nthreads = omp_get_num_threads();
-                        INDEXTYPE perthreadwork = graph.rows / nthreads;
-                        INDEXTYPE starti = tid * perthreadwork;
-                        INDEXTYPE endi = (tid + 1) * perthreadwork;
-                        if(tid == nthreads - 1) endi = max(endi, graph.rows);
-                        for(INDEXTYPE m= starti; m<endi && flag == false; m++){
-                                if(n == m) continue;
-                                VALUETYPE l1_x = N.x, l1_y = N.y+scaling, r1_x = N.x+N.z*scaling*0.6, r1_y = N.y, l2_x = nCoordinates[m].x, l2_y = nCoordinates[m].y+scaling, r2_x = nCoordinates[m].x+nCoordinates[m].z*scaling*0.6, r2_y = nCoordinates[m].y;                
-                                if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y)){
-                                        flag = true;
-                                }
+                for(INDEXTYPE m = 0; m<graph.rows && flag == false; m++){
+                	if(n == m) continue;
+                        VALUETYPE l1_x = N.x, l1_y = N.y+scaling, r1_x = N.x+N.z*scaling*0.6, r1_y = N.y, l2_x = nCoordinates[m].x, l2_y = nCoordinates[m].y+scaling, r2_x = nCoordinates[m].x+nCoordinates[m].z*scaling*0.6, r2_y = nCoordinates[m].y;                
+                        if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y)){
+                        	flag = true;
                         }
                 }
                 return flag;
@@ -497,7 +488,7 @@ class algorithms{
           	VALUETYPE x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
           	VALUETYPE total_area, scale, total_len = 0;
 		
-		#pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
+		//#pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
                 for(INDEXTYPE i=0;i<graph.rows;i++)
                 {
                         x_mx = max(x_mx, nCoordinates[i].x);
@@ -512,7 +503,7 @@ class algorithms{
                 x_mx = x_mn = (nCoordinates[0].x-cntr_x)*scalingbox/(x_mx-x_mn);
                 y_mx = y_mn = (nCoordinates[0].y-cntr_y)*scalingbox/(y_mx-y_mn);
 
-                #pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
+                //#pragma omp parallel for reduction(max:x_mx,y_mx) reduction(min:x_mn,y_mn)
                 for(INDEXTYPE i=0;i<graph.rows;i++)
                 {
                         nCoordinates[i].x = (nCoordinates[i].x-cntr_x)*scalingbox/(x_mx-x_mn);
@@ -525,35 +516,33 @@ class algorithms{
 		total_area = (x_mx-x_mn)*(y_mx-y_mn);
           	scale = sqrt(expc * total_area / (0.6 * total_len));
           	INDEXTYPE count = 0, count_solved = 0;
-		printf("Here..\n");
                 //#pragma omp parallel for schedule(static) //reduction(+:count,count_solved)
                 for(INDEXTYPE i = 0; i < graph.rows; i++){
-			printf("%d\n", i);
-			for(INDEXTYPE j=i+1; j<graph.rows; j++){
+			for(INDEXTYPE j=0; j<graph.rows; j++){
 				if(i == j) continue;
 				VALUETYPE l1_x = nCoordinates[i].x, l1_y = nCoordinates[i].y+scale, r1_x = nCoordinates[i].x+nCoordinates[i].z*scale*.6, r1_y = nCoordinates[i].y, l2_x = nCoordinates[j].x, l2_y = nCoordinates[j].y+scale, r2_x = nCoordinates[j].x+nCoordinates[j].z*scale*.6, r2_y = nCoordinates[j].y;
 				if(doOverlap(l1_x, l1_y, r1_x, r1_y, l2_x, l2_y, r2_x, r2_y)){
 					bool overlap_crossing_free = false;
-					for(INDEXTYPE l=0; l<psamples && !overlap_crossing_free; l++){
+					for(INDEXTYPE l=0; l<psamples && overlap_crossing_free == false; l++){
                     				VALUETYPE shift_x = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);
                     				VALUETYPE shift_y = (((double) rand() / RAND_MAX) * box_size) - (box_size/2);					
 						prevCoordinates[i] = nCoordinates[i];
 						prevCoordinates[i].x += shift_x;
                     				prevCoordinates[i].y += shift_y;
 						bool overlap_free, introducesCrossing;
-						printf("i = %d, j = %d, l = %d\n", i, j, l);	
+						//printf("i = %d, j = %d, l = %d\n", i, j, l);	
 						//#pragma omp critical
 						{
 							overlap_free = hasLabelOverlapping(0, i, prevCoordinates[i], scale);
-                      					introducesCrossing = hasEdgeCrossing(0, i, prevCoordinates[i], 1);
+                      					introducesCrossing = hasEdgeCrossing(0, i, prevCoordinates[i]);
                       				}
 						if(!overlap_free && !introducesCrossing){
                         				overlap_crossing_free = true;
-                        				//count_solved += 1;
+                        				count_solved += 1;
                         				nCoordinates[i] = prevCoordinates[i];
                     				}	
 					}
-					//count += 1;
+					count += 1;
 				}
 			}
 		}
@@ -748,7 +737,7 @@ class algorithms{
 						auto attrc = forceDiff.getMagnitude2();
 						//f += forceDiff * (graph.values[j] / sqrt(attrc));
 						if(sqrt(attrc) > graph.values[j])
-							f += forceDiff;
+							f += forceDiff * sqrt(attrc);
 						else f -= forceDiff * (1.0 / attrc);
 						//printf("%d -- %d, %f\n", i, colj, graph.values[colj]);
 					}
