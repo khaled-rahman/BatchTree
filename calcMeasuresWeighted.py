@@ -41,7 +41,10 @@ if __name__ == "__main__":
         tokens = line.strip().split()
         x = int(tokens[0])-1
         y = int(tokens[1])-1
-        w = float(tokens[2])
+        if len(tokens) > 2:
+            w = float(tokens[2])
+        else:
+            w = 50
         edges.append([x, y, w])
         #if nodes[x] in l1nodes and nodes[y] in l1nodes:
         #    edges.append([x, y])
@@ -66,10 +69,21 @@ if __name__ == "__main__":
 
     ###############Desired Edge Length###########
     totaldiff = 0
+    avglength = 0
     for [a, b, c] in edges:
         dist = math.sqrt((X[a][0] - X[b][0]) * (X[a][0] - X[b][0]) + (X[a][1] - X[b][1]) * (X[a][1] - X[b][1]))
         diff = abs(dist - c)
         totaldiff += math.pow(diff / c, 2)
+        avglength += dist
     averagediff = math.sqrt(totaldiff / len(edges))
-    print("Edge Length Preservation:", 1.0 - averagediff)
-        
+    avglength = avglength / len(edges)
+    print("Edge Length Preservation:", averagediff)
+
+    totaldiff = 0
+    for [a, b, c] in edges:
+        dist = math.sqrt((X[a][0] - X[b][0]) * (X[a][0] - X[b][0]) + (X[a][1] - X[b][1]) * (X[a][1] - X[b][1]))
+        diff = abs(dist - avglength)
+        totaldiff += math.pow(diff / avglength, 2)
+        avglength += dist
+    averagediff = math.sqrt(totaldiff / len(edges))
+    print("Uniform Edge Length Preservation:", averagediff)
