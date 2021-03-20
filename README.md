@@ -42,6 +42,10 @@ All options are described below:
 -input <string>, full path of input file (required).
 -output <string>, directory where output file will be stored.
 -batch <int>, size of minibatch.
+-algo <int>, an option from 1, 2, or 3.
+		1 - edge length aware version
+		2 - compactness aware version
+		3 - general version
 -nsamples <int>, number of samples to compute repulsive force.
 -initf <string>, a layout file to initializee the coordinates of all vertices.
 -iter <int>, number of iteration.

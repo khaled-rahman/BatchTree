@@ -41,7 +41,7 @@ void myTest(){
 
 void TestAlgorithms(int argc, char *argv[]){
 	VALUETYPE lr = 1.0, bhThreshold = 1.2, lrforlo = 0.5;
-	INDEXTYPE psamples = 1000, init = 0, batchsize = 128, iterations = 200, numberOfThreads = omp_get_max_threads(), algoOption = 2, nsamples=10, iter=200;
+	INDEXTYPE psamples = 1000, init = 0, batchsize = 128, iterations = 200, numberOfThreads = omp_get_max_threads(), algoOption = 3, nsamples=10, iter=200;
 	string inputfile = "", initfile = "", outputfile = "", labelfile = "", algoname = "CACHE", initname = "GREEDY";
 	VALUETYPE scalingbox = 10000, pbox = 50, expc = 0.01;
 	for(int p = 0; p < argc; p++){
@@ -138,7 +138,7 @@ void TestAlgorithms(int argc, char *argv[]){
 		}
 	}
 	vector<VALUETYPE> outputvec;
-	algorithms algo = algorithms(A_csr, inputfile, outputfile, labelfile, init, 1.0, lr, initfile);
+	algorithms algo = algorithms(A_csr, inputfile, outputfile, labelfile, init, 1.0, lr, initfile, algoOption);
 	algoname = "BATCHPREDNS";
         outputvec = algo.cacheBlockingminiBatchForceDirectedAlgorithm(iterations, numberOfThreads, batchsize, nsamples, lr, lrforlo, iter, scalingbox, psamples, pbox, expc);
 	string avgfile = "Results.txt";
