@@ -1,5 +1,5 @@
-# BatchPrEL
-BatchPrEL generates edge-crossing-free and label-overlapping-free layout of a tree.
+# BatchTree
+BatchTree generates edge-crossing-free and label-overlapping-free layout of a tree.
 
 ## System Requirements
 
@@ -11,29 +11,29 @@ Python3 packages: matplotlib, scipy, networkx, numpy
 ```
 Some helpful links for installation can be found at [GCC](https://gcc.gnu.org/install/), [OpenMP](https://clang-omp.github.io) and [Environment Setup](http://heather.cs.ucdavis.edu/~matloff/158/ToolsInstructions.html#compile_openmp).
 
-## Compile BatchPrEL
-To compile BatchPrEL type the following command on terminal:
+## Compile BatchTree
+To compile BatchTree type the following command on terminal:
 ```
 $ make clean
 $ make
 ```
 This will generate an executible file in bin folder.
 
-## Run BatchPrEL from command line
+## Run BatchTree from command line
 
 Input file must be in matrix market format ([check here for details about .mtx file](https://math.nist.gov/MatrixMarket/formats.html)). A lot of datasets can be found at [suitesparse website](https://sparse.tamu.edu). We provide few example input files in datasets/input directory. 
 
 #### Layout generation ####
-To generate crossing-free layout using BatchPrEL, use the following command:
+To generate crossing-free layout using BatchTree, use the following command:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 120 -lr 0.8 -batch 128 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
+$ ./bin/BatchTree -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -iter 120 -lr 0.8 -batch 128 -nsamples 20 -label datasets/raw/Graph_8.txt.labels -lrforlo 0.5 -iter2nd 150
 ```
 Here, `-input` is the full path of input file, `-output` is the directory where output file will be saved, `-iter` is the number of iterations, `-batch` is the size of minibatch which is 128 here, and `-algo` is the choice of algorithm to run which is 2 represending cache blocking stochastic minibatch update algorithm. 
 
 #### Post-processing step ####
 After running the first step, to remove existing label overlaps and increase area utilization, we can use this post-processing step. In this step, we will initialize the layout generated in previous step as follows:
 ```
-$ ./bin/BatchPrEL -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -expc 0.01 -initf datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT120.txt
+$ ./bin/BatchTree -input datasets/raw/Graph_8.txt.weighted.mtx -output datasets/output/ -label datasets/raw/Graph_8.txt.labels -scalingbox 400 -box 100 -psamples 600 -expc 0.01 -initf datasets/output/Graph_8.txt.weighted.mtxBatchTree128PARAOUT120.txt
 ```
 We can run this post-processing step multiple times to get the desired output.
 
@@ -65,7 +65,7 @@ default: -batch 128 -iter 200 -threads MAX -nsamples 10
 ## Compute edge-length preservation measure
 To compute the edge-length preservation measure, please run the following command:
 ```
-python calcMeasuresWeighted.py datasets/raw/Graph_8.txt.weighted.mtx datasets/output/Graph_8.txt.weighted.mtxBatchPrEL128PARAOUT0.txt datasets/raw/Graph_8.txt.labels
+python calcMeasuresWeighted.py datasets/raw/Graph_8.txt.weighted.mtx datasets/output/Graph_8.txt.weighted.mtxBatchTree128PARAOUT0.txt datasets/raw/Graph_8.txt.labels
 ```
 
 ### Contact 

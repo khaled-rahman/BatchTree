@@ -407,7 +407,7 @@ class algorithms{
 	void rescaleLayout(INDEXTYPE maxloop = 25, INDEXTYPE BATCHSIZE=128, VALUETYPE STEP=0.6){
 		bool flag = true;
 		int loop = 0;
-		VALUETYPE dedgelength = 40.0;
+		VALUETYPE dedgelength = 30.0;
 		printf("Running label overlaps removing function...\n");
 		while(flag){
 			flag = false;
@@ -431,7 +431,7 @@ class algorithms{
 						if(checkOverlap(nCoordinates[i], nCoordinates[j])){
 							VALUETYPE dist = (this->nCoordinates[j] - this->nCoordinates[i]).getMagnitude2();
 							if(dist > 0.0)
-							f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / (dist));	
+								f = f - (this->nCoordinates[j] - this->nCoordinates[i]) * (1.0 / (dist));	
 							flag = true;
 						}
 						
@@ -444,6 +444,8 @@ class algorithms{
                                         auto p = Coordinate <VALUETYPE>(0.0, 0.0);
                                         p.x = nCoordinates[i].x;
                                         p.y = nCoordinates[i].y;
+					//if(isnan(p.x) || isnan(p.y))
+                                        //        printf("overlap:it = %d, id = %d, px=%lf, py=%lf\n", loop, i, p.x, p.y);
 					if(prevCoordinates[i].getMagnitude2() > 0.0)
 					nCoordinates[i] = nCoordinates[i] + prevCoordinates[i].getUnitVector() * STEP;
                                         if(hasEdgeCrossing(loop, i, nCoordinates[i])){
@@ -555,7 +557,7 @@ class algorithms{
           printf("inside postProcessing\n");
           VALUETYPE x_mx = nCoordinates[0].x, x_mn = nCoordinates[0].x, y_mx = nCoordinates[0].y, y_mn = nCoordinates[0].y;
           VALUETYPE total_area, scale, total_len = 0;
-         if(graph.rows < 4500){ 
+         if(graph.rows < 55500){ 
 	 	for(INDEXTYPE i=0;i<graph.rows;i++)
          	{
             		if(x_mx<nCoordinates[i].x)x_mx = nCoordinates[i].x;
@@ -701,7 +703,7 @@ class algorithms{
 		if(init == 1){
 			fileInitialization();
 			ITERATIONS = 0;
-			ITER = 0;			
+			ITER = 0;
                 }else{
 			initDFS(root);
                 }
@@ -716,9 +718,7 @@ class algorithms{
 		for(INDEXTYPE k = 0; k < graph.rows; k++){
                 	prevCoordinates[k] = Coordinate <VALUETYPE>(0.0, 0.0);
                 }
-		VALUETYPE dedgelength = 20.0;
-		INDEXTYPE *ThRowId;
-   		ThRowId = (INDEXTYPE *) malloc(sizeof(INDEXTYPE)*(NUMOFTHREADS+1));
+		VALUETYPE dedgelength = 30.0;
 	        while(LOOP < ITERATIONS){
         	        ENERGY0 = ENERGY;
                 	ENERGY = 0;
@@ -744,8 +744,10 @@ class algorithms{
 						if(algoption == 1){
 							if(sqattrc > graph.values[j])
 								f += forceDiff * sqattrc; //(graph.values[j] * 0.02 / sqattrc);
-							else 
-								f -= forceDiff * (1.0 / attrc);
+							else{
+								if(attrc > 0.0)
+									f -= forceDiff * (1.0 / attrc);
+							}
 						}else if(algoption == 2){
 							if(sqattrc > dedgelength)
 								f += forceDiff * sqattrc;
@@ -757,7 +759,7 @@ class algorithms{
                                         for(INDEXTYPE j = 0; j < ns; j++){
                                         	forceDiff = samples[j] - nCoordinates[i];
 						auto repuls = forceDiff.getMagnitude2();
-						if(algoption == 1 && repuls > 0.0) repuls = sqrt(repuls);
+						if(algoption == 1) repuls = sqrt(repuls);
 						if(repuls > 0.0) f -= forceDiff * (1.0 / repuls); 
 					}
                                         prevCoordinates[indices[i]] += f;
@@ -768,6 +770,7 @@ class algorithms{
 					auto p = Coordinate <VALUETYPE>(0.0, 0.0);
                                         p.x = nCoordinates[i].x;
                                         p.y = nCoordinates[i].y;
+					
                                         nCoordinates[indices[i]] += prevCoordinates[indices[i]].getUnitVector() * STEP;
 					if(hasEdgeCrossing(LOOP, i, nCoordinates[indices[i]])){
 						nCoordinates[indices[i]] = p;
@@ -786,7 +789,7 @@ class algorithms{
                 }else{
 			printf("No edge-crossing after force-updates!\n");
 		}
-		if(lrforlo > 0){
+		if(ITER > 0){
 			rescaleLayout(ITER, BATCHSIZE, lrforlo);
 			if(checkCrossing(LOOP)){
                         	printf("(after label attachment) Dead End!\n");
@@ -800,7 +803,7 @@ class algorithms{
                 	}
 		}
         	end = omp_get_wtime();
-        	cout << "BatchPrEL Parallel Wall time required:" << end - start << endl;
+        	cout << "BatchTree Parallel Wall time required:" << end - start << endl;
 		result.push_back(end - start);
 			
 		maxX = nCoordinates[0].x;
@@ -815,7 +818,7 @@ class algorithms{
                 }
 		cout << "Suggested scaling-box in post-processing:" << max(maxX - minX, maxY - minY) << endl;	
 		
-        	writeToFile("BatchPrEL"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
+        	writeToFile("BatchTree"+ to_string(BATCHSIZE)+"PARAOUT" + to_string(LOOP));
 		return result;
 	}
 
