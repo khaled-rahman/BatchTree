@@ -1,4 +1,4 @@
-COMPILER = g++-10
+COMPILER = g++
 
 FLAGS = -g -fopenmp -O3 -std=c++11
 

@@ -28,7 +28,7 @@ void helpmessage(){
 	printf("Usage of BatchLayout tool:\n");
 	printf("-input <string>, full path of input file (required).\n");
 	printf("-output <string>, directory where output file will be stored.\n");
-	printf("\nFor detailed instructions, visit https://github.com/khaled-rahman/BatchPrEL\n\n");
+	printf("\nFor detailed instructions, visit https://github.com/khaled-rahman/BatchTree\n\n");
 }
 
 void myTest(){
