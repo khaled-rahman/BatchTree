@@ -706,6 +706,8 @@ class algorithms{
 			ITER = 0;
                 }else{
 			initDFS(root);
+			double i_end = omp_get_wtime();
+			cout << "Initialization Wall time required:" << i_end - start << endl;		
                 }
 		
 		if(labelfile.size() > 0) readlabels();
@@ -784,6 +786,8 @@ class algorithms{
                 	LOOP++;
 			//printf("Loop Count: %d\n", LOOP);
         	}
+		double f_end = omp_get_wtime();
+                cout << "BatchTree ForceUpdate Wall time required:" << f_end - start << endl;
 		if(checkCrossing(LOOP)){
                 	printf("(after forceupdate) Dead End!\n");
                 }else{
