@@ -1,5 +1,5 @@
 # BatchTree
-BatchTree generates edge-crossing-free and label-overlapping-free layout of a tree. This is a supporting scalable implmentation for the paper [**Scalable Methods for Readable Tree Layouts**](https://tiga1231.github.io/zmlt/demo/doc/paper.pdf).
+BatchTree generates edge-crossing-free and label-overlapping-free layout of a tree. This is a supporting scalable implementation for the paper [**Scalable Methods for Readable Tree Layouts**](https://tiga1231.github.io/zmlt/demo/doc/paper.pdf).
 
 ## System Requirements
 
