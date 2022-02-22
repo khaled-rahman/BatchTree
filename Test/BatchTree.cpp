@@ -120,13 +120,13 @@ void TestAlgorithms(int argc, char *argv[]){
 		initname = "FILE";
 	}
 	printf("\n");
-        printf("@@@@@                   @      @@@@@@        @@@@@@ @     \n");
-        printf("@    @                  @      @    @        @      @     \n");
-        printf("@  @   @@@@@@ @  @@@@@@ @      @    @ @ @@@  @      @     \n");
-        printf("@@@         @ @@ @    @ @@@@@@ @@@@@@ @@   @ @@@@@@ @     \n");
-        printf("@  @   @@@@@@ @  @      @    @ @      @      @      @     \n");
-        printf("@    @ @    @ @  @      @    @ @      @      @      @     \n");
-        printf("@@@@@  @@@@@@ @@ @@@@@@ @    @ @      @      @@@@@@ @@@@@@\n\n");
+        printf("@@@@@                   @      @@@@@@@                       \n");
+        printf("@    @                  @         @                          \n");
+        printf("@  @   @@@@@@ @  @@@@@@ @      	  @                          \n");
+        printf("@@@         @ @@ @    @ @@@@@@    @    @@@@@ @ @@@@@@ @@@@@  \n");
+        printf("@  @   @@@@@@ @  @      @    @    @     @  @   @    @ @   @  \n");
+        printf("@    @ @    @ @  @      @    @    @     @      @@@@@  @@@@   \n");
+        printf("@@@@@  @@@@@@ @@ @@@@@@ @    @    @     @      @@@@@@ @@@@@@ \n\n");
 	CSR<INDEXTYPE, VALUETYPE> A_csr;
         SetInputMatricesAsCSR(A_csr, inputfile);
         A_csr.Sorted();
